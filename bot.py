@@ -1,3 +1,4 @@
+import os
 import time
 import sqlite3
 from datetime import datetime
@@ -20,7 +21,7 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-BOT_TOKEN = "BOT_TOKEN"
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_CHAT_ID = ADMIN_CHAT_ID
 PAYPAL_BASE_LINK = "https://www.paypal.com/paypalme/Chaschni?country.x=DE&locale.x=de_DE"
 CONTACT_USERNAME = "Chaschni"
@@ -650,13 +651,14 @@ def main():
     dp.add_handler(CallbackQueryHandler(callbacks))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
-    WEBHOOK_URL = f"https://chaschni-bot.onrender.com/{BOT_TOKEN}"
+    PORT = int(os.environ.get("PORT", 8443))
+WEBHOOK_URL = f"https://chaschni-bot.onrender.com./{BOT_TOKEN}"
 
-    updater.start_webhook(
+updater.start_webhook(
     listen="0.0.0.0",
-    port=int(os.environ.get("PORT", 5000)),
+    port=PORT,
     url_path=BOT_TOKEN,
     webhook_url=WEBHOOK_URL
 )
 
-    updater.idle()
+updater.idle()
