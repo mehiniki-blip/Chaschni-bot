@@ -21,8 +21,8 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-ADMIN_CHAT_ID = ADMIN_CHAT_ID
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID"))
 PAYPAL_BASE_LINK = "https://www.paypal.com/paypalme/Chaschni?country.x=DE&locale.x=de_DE"
 CONTACT_USERNAME = "Chaschni"
 CUTLERY_PRICE = 0.30
