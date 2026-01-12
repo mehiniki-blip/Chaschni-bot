@@ -1,3 +1,2 @@
-python-telegram-bot==13.14
-imghdr
+python-telegram-bot==13.15
 
