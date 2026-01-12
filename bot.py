@@ -652,13 +652,13 @@ def main():
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
     PORT = int(os.environ.get("PORT", 8443))
-WEBHOOK_URL = f"https://chaschni-bot.onrender.com./{BOT_TOKEN}"
+    WEBHOOK_URL = f"https://chaschni-bot.onrender.com/{BOT_TOKEN}"
 
-updater.start_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    url_path=BOT_TOKEN,
-    webhook_url=WEBHOOK_URL
-)
+    updater.start_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=BOT_TOKEN,
+        webhook_url=WEBHOOK_URL
+    )
 
-updater.idle()
+    updater.idle()
