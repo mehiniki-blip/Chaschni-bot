@@ -651,14 +651,8 @@ def main():
     dp.add_handler(CallbackQueryHandler(callbacks))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
-    PORT = int(os.environ.get("PORT", 8443))
-    WEBHOOK_URL = f"https://chaschni-bot.onrender.com/{BOT_TOKEN}"
+    print("Bot is running...")  # برای اینکه Render بفهمد برنامه زنده است
 
-    updater.start_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=BOT_TOKEN,
-        webhook_url=WEBHOOK_URL
-    )
-
+    updater.start_polling()
     updater.idle()
+
