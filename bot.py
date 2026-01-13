@@ -1,6 +1,4 @@
-from flask import Flask
 import os
-import threading
 import time
 import sqlite3
 from datetime import datetime
@@ -654,21 +652,6 @@ def main():
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
     print("Bot is running...")
-
-    # --------- FAKE WEB SERVER FOR RENDER ----------
-    app = Flask(__name__)
-
-    @app.route("/")
-    def home():
-        return "Bot is running!"
-
-    def run_server():
-        port = int(os.environ.get("PORT", 10000))
-        app.run(host="0.0.0.0", port=port)
-
-    # Run Flask server in a thread
-    threading.Thread(target=run_server).start()
-    # -------------------------------------------------
 
     updater.start_polling()
     updater.idle()
