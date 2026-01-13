@@ -33,7 +33,7 @@ MAX_DAILY = 15
 TIMEZONE = ZoneInfo("Europe/Berlin")
 
 ENABLE_TIME_LIMIT = True      # حالت واقعی
-TEST_MODE = True            # حالت تست
+TEST_MODE = False            # حالت تست
 
 WORK_DAYS = {0, 3}            # دوشنبه=0 ، پنجشنبه=3
 START_HOUR = 12
