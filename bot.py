@@ -1,3 +1,4 @@
+from flask import Flask, request
 import os
 import time
 import sqlite3
@@ -5,6 +6,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from telegram import (
+    Bot,
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -12,7 +14,7 @@ from telegram import (
     ReplyKeyboardRemove
 )
 from telegram.ext import (
-    Updater,
+    Dispatcher,
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
@@ -642,22 +644,43 @@ def handle_text(update: Update, context: CallbackContext):
         )
         return
 
-# ----------- MAIN -----------
+# ----------- WEBHOOK MODE -----------
+app = Flask(__name__)
+dp = None
+bot = Bot(BOT_TOKEN)
+
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def webhook_handler():
+    global dp
+    update = Update.de_json(request.get_json(force=True), bot)
+    dp.process_update(update)
+    return "OK", 200
+
+
+@app.route("/")
+def home():
+    return "Bot is running!", 200
+
+
 def main():
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
+    global dp
+
+    dp = Dispatcher(bot, None, workers=0)
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(callbacks))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
-    print("Bot is running...")
+    WEBHOOK_URL = f"https://chaschni-bot.onrender.com/{BOT_TOKEN}"
+    bot.set_webhook(WEBHOOK_URL)
 
-    updater.start_polling()
-    updater.idle()
+    port = int(os.environ.get("PORT", 8443))
+    app.run(host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":
     main()
+
+
 
 
