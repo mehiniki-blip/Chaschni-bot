@@ -643,7 +643,7 @@ def handle_text(update: Update, context: CallbackContext):
         )
         return
 
-# ---------- MAIN ----------
+# ----------- MAIN -----------
 def main():
     updater = Updater(BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
@@ -655,23 +655,25 @@ def main():
     print("Bot is running...")
 
     # --------- FAKE WEB SERVER FOR RENDER ----------
-app = Flask(__name__)
+    app = Flask(__name__)
 
-@app.route("/")
-def home():
-    return "Bot is running!"
+    @app.route("/")
+    def home():
+        return "Bot is running!"
 
-def run_server():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    def run_server():
+        port = int(os.environ.get("PORT", 10000))
+        app.run(host="0.0.0.0", port=port)
 
+    # Run Flask server in a thread
+    threading.Thread(target=run_server).start()
+    # -------------------------------------------------
 
-
-threading.Thread(target=run_server).start()
-# ------------------------------------------------
     updater.start_polling()
     updater.idle()
 
+
 if __name__ == "__main__":
     main()
+
 
