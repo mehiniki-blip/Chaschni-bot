@@ -651,8 +651,11 @@ def main():
     dp.add_handler(CallbackQueryHandler(callbacks))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
-    print("Bot is running...")  # برای اینکه Render بفهمد برنامه زنده است
+    print("Bot is running...")
 
     updater.start_polling()
     updater.idle()
+
+if __name__ == "__main__":
+    main()
 
