@@ -422,16 +422,16 @@ def handle_text(update: Update, context: CallbackContext):
         return
 
        # --- ADMIN: ENABLE TEST MODE ---
-    if uid == ADMIN_CHAT_ID and text == "🔵فعل‍اکردن تست":
-        TEST_MODE = True
-        update.message.reply_text("🔵 حالت تست فعال شد")
-        return
+    if uid == ADMIN_CHAT_ID and "تست" in text and "فعال" in text:
+    TEST_MODE = True
+    update.message.reply_text("🔵 حالت تست فعال شد")
+    return
 
     # --- ADMIN: DISABLE TEST MODE ---
-    if uid == ADMIN_CHAT_ID and text == "⚪غیر‍فع‍ال‍کردن تست":
-        TEST_MODE = False
-        update.message.reply_text("⚪ حالت تست غیرفعال شد")
-        return
+    if uid == ADMIN_CHAT_ID and "تست" in text and "غیر" in text:
+    TEST_MODE = False
+    update.message.reply_text("⚪ حالت تست غیرفعال شد")
+    return
 
     # --- REPORT (ADMIN ONLY) ---
     if uid == ADMIN_CHAT_ID and text.strip() in ["📊 ریپورت", "ریپورت", "report", "/report"]:
