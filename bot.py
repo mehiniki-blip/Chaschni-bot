@@ -368,7 +368,9 @@ def callbacks(update: Update, context: CallbackContext):
 
 # ---------- TEXT HANDLER ----------
 def handle_text(update: Update, context: CallbackContext):
-    global EMERGENCY_MESSAGE   # ← باید اینجا باشد
+    global EMERGENCY_MESSAGE
+    global TEST_MODE
+ 
     uid = update.effective_user.id
     text = update.message.text
     st = user_state.get(uid)
