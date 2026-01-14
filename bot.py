@@ -212,19 +212,19 @@ def start(update: Update, context: CallbackContext):
 # دکمه‌های مخصوص ادمین
     if update.effective_user.id == ADMIN_CHAT_ID:
 
-    status = "🔵 تست فعال است" if TEST_MODE else "⚪ حالت واقعی فعال است"
+        status = "🔵 تست فعال است" if TEST_MODE else "⚪ حالت واقعی فعال است"
 
-    update.message.reply_text(
-        f"⚙️ پنل مدیریت\n{status}",
-        reply_markup=ReplyKeyboardMarkup(
-            [
-                ["📊 ریپورت"],
-                ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
-                ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
-            ],
-            resize_keyboard=True
+        update.message.reply_text(
+            f"⚙️ پنل مدیریت\n{status}",
+            reply_markup=ReplyKeyboardMarkup(
+                [
+                    ["📊 ریپورت"],
+                    ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
+                    ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
+                ],
+                resize_keyboard=True
+            )
         )
-    )
 
 
 
