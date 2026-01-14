@@ -215,12 +215,14 @@ def start(update: Update, context: CallbackContext):
         "⚙️ پنل مدیریت:",
             reply_markup=ReplyKeyboardMarkup(
             [
-                ["📊 ریپورت"],
-                ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"]
-            ],
-            resize_keyboard=True
+            ["📊 ریپورت"],
+            ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
+            ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
+        ],
+        resize_keyboard=True
         )
     )
+
 
 
 
@@ -426,6 +428,20 @@ def handle_text(update: Update, context: CallbackContext):
             update.message.reply_text("هیچ سفارشی ثبت نشده است.")
             return
 
+    # --- ADMIN: ENABLE TEST MODE ---
+    if uid == ADMIN_CHAT_ID and text == "🔵 فعال‌کردن تست":
+        global TEST_MODE
+        TEST_MODE = True
+        update.message.reply_text("🔵 حالت تست فعال شد")
+        return
+
+# --- ADMIN: DISABLE TEST MODE ---
+    if uid == ADMIN_CHAT_ID and text == "⚪ غیرفعال‌کردن تست":
+        global TEST_MODE
+        TEST_MODE = False
+        update.message.reply_text("⚪ حالت تست غیرفعال شد")
+        return
+    
         report = "📊 گزارش فروش:\n\n"
         for r in rows:
             report += (
