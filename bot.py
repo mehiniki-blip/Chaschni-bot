@@ -423,14 +423,12 @@ def handle_text(update: Update, context: CallbackContext):
 
        # --- ADMIN: ENABLE TEST MODE ---
     if uid == ADMIN_CHAT_ID and text == "🔵فعل‍اکردن تست":
-        global TEST_MODE
         TEST_MODE = True
         update.message.reply_text("🔵 حالت تست فعال شد")
         return
 
     # --- ADMIN: DISABLE TEST MODE ---
     if uid == ADMIN_CHAT_ID and text == "⚪غیر‍فع‍ال‍کردن تست":
-        global TEST_MODE
         TEST_MODE = False
         update.message.reply_text("⚪ حالت تست غیرفعال شد")
         return
