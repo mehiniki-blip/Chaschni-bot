@@ -419,7 +419,8 @@ def handle_text(update: Update, context: CallbackContext):
         update.message.reply_text("⚠️ پیام اضطراری ثبت شد")
         return
 
-    # REPORT (ADMIN ONLY)
+    
+        # REPORT (ADMIN ONLY)
     if uid == ADMIN_CHAT_ID and text.strip() in ["📊 ریپورت", "ریپورت", "report", "/report"]:
         cur.execute("SELECT * FROM orders ORDER BY id DESC")
         rows = cur.fetchall()
@@ -427,23 +428,7 @@ def handle_text(update: Update, context: CallbackContext):
         if not rows:
             update.message.reply_text("هیچ سفارشی ثبت نشده است.")
             return
- 
- # --- ADMIN: ENABLE TEST MODE ---
-    if uid == ADMIN_CHAT_ID and text == "🔵فعل‍اکردن تست":
-        global TEST_MODE
-        TEST_MODE = True
-        update.message.reply_text("🔵 حالت تست فعال شد")
-        return
 
-# --- ADMIN: DISABLE TEST MODE ---
-    if uid == ADMIN_CHAT_ID and text == "⚪غیر‍فع‍ال‍کردن تست":
-        global TEST_MODE
-        TEST_MODE = False
-        update.message.reply_text("⚪ حالت تست غیرفعال شد")
-        return
-
-
-    
         report = "📊 گزارش فروش:\n\n"
         for r in rows:
             report += (
@@ -460,6 +445,22 @@ def handle_text(update: Update, context: CallbackContext):
 
         update.message.reply_text(report)
         return
+
+
+    # --- ADMIN: ENABLE TEST MODE ---
+    if uid == ADMIN_CHAT_ID and text == "🔵فعل‍اکردن تست":
+        global TEST_MODE
+        TEST_MODE = True
+        update.message.reply_text("🔵 حالت تست فعال شد")
+        return
+
+    # --- ADMIN: DISABLE TEST MODE ---
+    if uid == ADMIN_CHAT_ID and text == "⚪غیر‍فع‍ال‍کردن تست":
+        global TEST_MODE
+        TEST_MODE = False
+        update.message.reply_text("⚪ حالت تست غیرفعال شد")
+        return
+
        
     # MENU
     if text == "🍽 شروع سفارش":
