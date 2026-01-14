@@ -427,19 +427,21 @@ def handle_text(update: Update, context: CallbackContext):
         if not rows:
             update.message.reply_text("هیچ سفارشی ثبت نشده است.")
             return
-
-    # --- ADMIN: ENABLE TEST MODE ---
-    if uid == ADMIN_CHAT_ID and text == "🔵 فعال‌کردن تست":
+ 
+ # --- ADMIN: ENABLE TEST MODE ---
+    if uid == ADMIN_CHAT_ID and text == "🔵فعل‍اکردن تست":
         global TEST_MODE
         TEST_MODE = True
         update.message.reply_text("🔵 حالت تست فعال شد")
         return
 
-    if uid == ADMIN_CHAT_ID and text == "⚪ غیرفعال‌کردن تست":
+# --- ADMIN: DISABLE TEST MODE ---
+    if uid == ADMIN_CHAT_ID and text == "⚪غیر‍فع‍ال‍کردن تست":
         global TEST_MODE
         TEST_MODE = False
         update.message.reply_text("⚪ حالت تست غیرفعال شد")
         return
+
 
     
         report = "📊 گزارش فروش:\n\n"
