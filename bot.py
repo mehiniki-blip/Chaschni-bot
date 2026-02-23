@@ -422,7 +422,7 @@ def callbacks(update: Update, context: CallbackContext):
                 [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
             ])
         )
-        return    
+            
         
     # ADMIN MESSAGE
         context.bot.send_message(
