@@ -694,6 +694,7 @@ if st["step"] == "phone":
         st["step"] = "address"
         update.message.reply_text("🏠 لطفاً آدرس کامل را وارد کنید:")
         return
+    
     else:
         st["address"] = "تحویل حضوری"
         st["step"] = "delivery_slot"
