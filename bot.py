@@ -378,9 +378,10 @@ def callbacks(update: Update, context: CallbackContext):
         f"✅ بازه تحویل انتخاب شد:\n"
         f"⏰ {start} – {end}\n\n"
         "لطفاً پرداخت را انجام دهید."
-    )
-    return        
-        # ADMIN MESSAGE
+        )
+        return        
+        
+    # ADMIN MESSAGE
         context.bot.send_message(
             ADMIN_CHAT_ID,
             f"⚠️ سفارش جدید برای بررسی\n\n"
