@@ -96,12 +96,22 @@ def normalize_digits(text):
 def is_working_time():
     if TEST_MODE:
         return True
-    
+
     if not ENABLE_TIME_LIMIT:
         return True
 
-    now = datetime.now(TIMEZONE)
-    return now.weekday() in WORK_DAYS and START_HOUR <= now.hour < END_HOUR
+    today = datetime.now(TIMEZONE).weekday()
+
+    # سه‌شنبه(1) و چهارشنبه(2) → پیش‌سفارش برای پنجشنبه(3)
+    if today in [1, 2]:
+        return True
+
+    # جمعه(4)، شنبه(5)، یکشنبه(6) → پیش‌سفارش برای دوشنبه(0)
+    if today in [4, 5, 6]:
+        return True
+
+    # بقیه روزها سفارش‌گیری بسته است
+    return False
 
 def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method):
     from random import randint
@@ -203,10 +213,18 @@ def pickup_keyboard():
 # ---------- COMMANDS ----------
 def start(update: Update, context: CallbackContext):
     update.message.reply_text(
-        "👋 خوش آمدید!\n"
-        "🚗 تحویل فقط در 30163 + برخی خیابان‌های 30165\n"
-        "📍 بزودی سراسر هانوفر\n\n"
-        "برای شروع لطفاً از دکمه‌های زیر استفاده کنید:",
+        "👋 خوش آمدید!\n\n"
+        "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
+        "🚚 تحویل غذا فقط در روزهای:\n"
+        "• دوشنبه\n"
+        "• پنج‌شنبه\n\n"
+        "🗓 ثبت سفارش:\n"
+        "• سه‌شنبه و چهارشنبه → برای تحویل پنج‌شنبه\n"
+        "• جمعه، شنبه و یکشنبه → برای تحویل دوشنبه\n\n"
+        "⏰ بازه تحویل: ۱۲:۰۰ تا ۱۸:۰۰\n"
+        "🚗 محدوده ارسال: 30163 + برخی خیابان‌های 30165\n\n"
+        "🙏 لطفاً سفارش خود را از قبل ثبت فرمایید.\n"
+        "برای شروع، از دکمه‌های زیر استفاده کنید:",
         reply_markup=persistent_menu()
     )
 # دکمه‌های مخصوص ادمین
