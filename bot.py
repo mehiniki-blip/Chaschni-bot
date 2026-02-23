@@ -122,6 +122,18 @@ def is_working_time():
 
     # بقیه روزها سفارش‌گیری بسته است
     return False
+def get_target_delivery_day():
+    today = datetime.now(TIMEZONE).weekday()
+
+    # سه‌شنبه / چهارشنبه → پنجشنبه
+    if today in [1, 2]:
+        return "پنج‌شنبه"
+
+    # جمعه / شنبه / یکشنبه → دوشنبه
+    if today in [4, 5, 6]:
+        return "دوشنبه"
+
+    return None  # روز تحویل (که سفارش بسته است)
 
 def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method):
     from random import randint
