@@ -379,7 +379,23 @@ def callbacks(update: Update, context: CallbackContext):
         f"⏰ {start} – {end}\n\n"
         "لطفاً پرداخت را انجام دهید."
         )
-        return        
+        return
+    # PAY
+    if st["step"] == "pay":
+
+        total = st["food_total"] + (st["cutlery_qty"] * CUTLERY_PRICE)
+        st["total"] = total
+
+        update.message.reply_text(
+        f"💰 مبلغ نهایی: €{total}\n\n"
+        "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
+        "🙏 لطفاً پس از پرداخت، روی دکمه «پرداخت انجام شد» بزنید.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
+                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+            ])
+        )
+        return    
         
     # ADMIN MESSAGE
         context.bot.send_message(
@@ -693,27 +709,26 @@ if st["step"] == "phone":
     if st["delivery_method"] == "delivery":
         st["step"] = "address"
         update.message.reply_text("🏠 لطفاً آدرس کامل را وارد کنید:")
+        return
     else:
+        # pickup
         st["address"] = "تحویل حضوری"
         st["step"] = "delivery_slot"
         update.message.reply_text(
             "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
             reply_markup=delivery_slot_keyboard()
         )
-    return
-     
-
+        return
+    
 # ADDRESS
 if st["step"] == "address":
     st["address"] = text
     st["step"] = "delivery_slot"
-
     update.message.reply_text(
         "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
         reply_markup=delivery_slot_keyboard()
     )
     return
-
 # ----------- WEBHOOK MODE -----------
 app = Flask(__name__)
 dp = None
