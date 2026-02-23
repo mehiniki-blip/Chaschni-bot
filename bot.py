@@ -686,18 +686,18 @@ def handle_text(update: Update, context: CallbackContext):
         st["total"] = total
 
         update.message.reply_text(
-            f"💶 مبلغ نهایی: €{total}\n"
-            f"💶 مبلغ نهایی سفارش: €{total}\n\n"
-            "💳 پرداخت سفارش صرفاً از طریق PayPal انجام می‌شود.\n"
-            "🔒 این روش به‌منظور حفظ امنیت پرداخت‌ها و ثبت قطعی پیش‌سفارش‌ها انتخاب شده است.\n\n"
-            "🍽 با توجه به اینکه سفارش‌ها به‌صورت پیش‌سفارش و بر اساس برنامه تحویل آماده می‌شوند،\n"
-            "پرداخت آنلاین به ما امکان می‌دهد سفارش شما را با دقت و اطمینان کامل برنامه‌ریزی و آماده‌سازی کنیم.\n\n"
-            "🙏 خواهشمندیم پس از انجام پرداخت، جهت نهایی شدن سفارش، دکمه «پرداخت انجام شد» را انتخاب فرمایید."
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 پرداخت PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
-                [InlineKeyboardButton("✔️ پرداخت انجام شد", callback_data="paid_paypal")]
-            ])
-        )
+    (
+        f"💰 مبلغ نهایی: €{total}\n"
+        f"🧾 مبلغ نهایی سفارش: €{total}\n"
+        "💳 پرداخت سفارش صرفاً از طریق PayPal انجام می‌شود.\n"
+        "🙏 این روش به ما کمک می‌کند برنامه‌ریزی دقیق‌تری برای آماده‌سازی و تحویل داشته باشیم.\n"
+        "📦 پس از انجام پرداخت، لطفاً روی دکمه «پرداخت انجام شد» بزنید."
+    ),
+    reply_markup=InlineKeyboardMarkup([
+        [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
+        [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+    ])
+)
         return
 
 # ----------- WEBHOOK MODE -----------
