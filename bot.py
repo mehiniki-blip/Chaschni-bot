@@ -370,16 +370,31 @@ def callbacks(update: Update, context: CallbackContext):
 
     # ---------------- DELIVERY SLOT ----------------
     if q.data.startswith("slot_"):
-        _, start, end = q.data.split("_")
-        st["delivery_slot"] = f"{start} – {end}"
-        st["step"] = "pay"
+    _, start, end = q.data.split("_")
+    st["delivery_slot"] = f"{start} – {end}"
 
-        q.edit_message_text(
+    # محاسبه مبلغ نهایی
+    total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
+    st["total"] = total
+    st["step"] = "pay"
+
+    q.edit_message_text(
         f"✅ بازه تحویل انتخاب شد:\n"
         f"⏰ {start} – {end}\n\n"
-        "لطفاً پرداخت را انجام دهید."
-        )
-        return
+        f"💰 مبلغ نهایی: €{total}\n\n"
+        "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
+        "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
+    )
+
+    context.bot.send_message(
+        chat_id=uid,
+        text="لینک پرداخت:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
+            [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+        ])
+    )
+    return
     # PAY
     if st["step"] == "pay":
 
@@ -554,7 +569,19 @@ def handle_text(update: Update, context: CallbackContext):
             )
             return
 
-        update.message.reply_text("📋 منوی امروز:")
+        day = datetime.now(TIMEZONE).weekday()
+
+        if day in [1, 2]:
+            day_name = "پنج‌شنبه"
+        elif day in [4, 5, 6]:
+            day_name = "دوشنبه"
+        else:
+            day_name = "امروز"
+
+        update.message.reply_text(
+            f"📋 منوی {day_name}\n"
+            f"⏰ لطفاً سفارش خود را قبل از روز تحویل ثبت کنید:"
+        )
         update.message.reply_text(
     "لطفاً انتخاب کنید:",
             reply_markup=food_keyboard()
@@ -713,8 +740,15 @@ def handle_text(update: Update, context: CallbackContext):
         else:
             st["address"] = "تحویل حضوری"
             st["step"] = "delivery_slot"
+            day = datetime.now(TIMEZONE).weekday()
+            if day in [1, 2]:
+                delivery_day = "پنج‌شنبه"
+            elif day in [4, 5, 6]:
+                delivery_day = "دوشنبه"
+            else:
+                delivery_day = "امروز"
             update.message.reply_text(
-                "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
+                f"⏰ لطفاً بازه زمانی تحویل غذا برای {delivery_day} را انتخاب کنید:",
                 reply_markup=delivery_slot_keyboard()
             )
             return
@@ -723,8 +757,15 @@ def handle_text(update: Update, context: CallbackContext):
     if st["step"] == "address":
         st["address"] = text
         st["step"] = "delivery_slot"
+        day = datetime.now(TIMEZONE).weekday()
+        if day in [1, 2]:
+            delivery_day = "پنج‌شنبه"
+        elif day in [4, 5, 6]:
+            delivery_day = "دوشنبه"
+        else:
+            delivery_day = "امروز"
         update.message.reply_text(
-            "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
+            f"⏰ لطفاً بازه زمانی تحویل غذا برای {delivery_day} را انتخاب کنید:",
             reply_markup=delivery_slot_keyboard()
         )
         return
