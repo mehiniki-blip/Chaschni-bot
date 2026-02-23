@@ -234,7 +234,7 @@ def delivery_slot_keyboard():
             )
         ])
 
-    return InlineKeyboardMarkup(slots)    
+    return InlineKeyboardMarkup(slots)   
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("بله ادامه بده", callback_data="pickup_yes"),
