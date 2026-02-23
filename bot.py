@@ -686,26 +686,23 @@ def handle_text(update: Update, context: CallbackContext):
         update.message.reply_text("📞 لطفاً شماره تماس را وارد کنید:")
         return
 
-   # PHONE
+# PHONE
 if st["step"] == "phone":
     st["phone"] = text
 
     if st["delivery_method"] == "delivery":
         st["step"] = "address"
         update.message.reply_text("🏠 لطفاً آدرس کامل را وارد کنید:")
-        return
-    
     else:
         st["address"] = "تحویل حضوری"
         st["step"] = "delivery_slot"
         update.message.reply_text(
-            "🕒 لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
+            "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
             reply_markup=delivery_slot_keyboard()
         )
-        return
+    return
      
 
-    # ADDRESS
 # ADDRESS
 if st["step"] == "address":
     st["address"] = text
