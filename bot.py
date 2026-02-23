@@ -705,32 +705,16 @@ if st["step"] == "phone":
      
 
     # ADDRESS
+# ADDRESS
 if st["step"] == "address":
     st["address"] = text
     st["step"] = "delivery_slot"
+
     update.message.reply_text(
-        "⏰ لطفاً بازه زمانی دلخواه برای تحویل غذا را انتخاب کنید:",
+        "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
         reply_markup=delivery_slot_keyboard()
     )
     return
-
-        total = st["food_total"] + (st["cutlery_qty"] * CUTLERY_PRICE)
-        st["total"] = total
-
-        update.message.reply_text(
-    (
-        f"💰 مبلغ نهایی: €{total}\n"
-        f"🧾 مبلغ نهایی سفارش: €{total}\n"
-        "💳 پرداخت سفارش صرفاً از طریق PayPal انجام می‌شود.\n"
-        "🙏 این روش به ما کمک می‌کند برنامه‌ریزی دقیق‌تری برای آماده‌سازی و تحویل داشته باشیم.\n"
-        "📦 پس از انجام پرداخت، لطفاً روی دکمه «پرداخت انجام شد» بزنید."
-    ),
-    reply_markup=InlineKeyboardMarkup([
-        [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
-        [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
-    ])
-)
-        return
 
 # ----------- WEBHOOK MODE -----------
 app = Flask(__name__)
