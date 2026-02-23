@@ -213,6 +213,13 @@ def admin_keyboard(order_no):
     ])
 
 def pickup_keyboard():
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📍 تحویل حضوری", callback_data="pickup_yes"),
+            InlineKeyboardButton("❌ لغو سفارش", callback_data="pickup_no")
+        ]
+    ])
+
 
 def delivery_slot_keyboard():
     buttons = []
@@ -232,18 +239,12 @@ def delivery_slot_keyboard():
 
         buttons.append([
             InlineKeyboardButton(
-                f"🕒 {start} تا {end}",
+                f"⏰ {start} – {end}",
                 callback_data=f"slot_{start}_{end}"
             )
         ])
 
     return InlineKeyboardMarkup(buttons)
-        [
-            InlineKeyboardButton("بله ادامه بده", callback_data="pickup_yes"),
-            InlineKeyboardButton("لغو سفارش", callback_data="pickup_no")
-        ]
-    ])
-
 # ---------- COMMANDS ----------
 def start(update: Update, context: CallbackContext):
     update.message.reply_text(
