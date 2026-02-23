@@ -588,7 +588,7 @@ def handle_text(update: Update, context: CallbackContext):
         elif day in [4, 5, 6]:
             day_name = "دوشنبه"
         else:
-            day_name = "امروز"
+            day_name = None
 
         update.message.reply_text(
             f"📋 منوی {day_name}\n"
@@ -758,7 +758,7 @@ def handle_text(update: Update, context: CallbackContext):
             elif day in [4, 5, 6]:
                 delivery_day = "دوشنبه"
             else:
-                delivery_day = "امروز"
+                delivery_day = None
             update.message.reply_text(
                 f"⏰ لطفاً بازه زمانی تحویل غذا برای {delivery_day} را انتخاب کنید:",
                 reply_markup=delivery_slot_keyboard()
@@ -775,7 +775,7 @@ def handle_text(update: Update, context: CallbackContext):
         elif day in [4, 5, 6]:
             delivery_day = "دوشنبه"
         else:
-            delivery_day = "امروز"
+            delivery_day = None
         update.message.reply_text(
             f"⏰ لطفاً بازه زمانی تحویل غذا برای {delivery_day} را انتخاب کنید:",
             reply_markup=delivery_slot_keyboard()
