@@ -379,6 +379,21 @@ def callbacks(update: Update, context: CallbackContext):
             f"💶 مبلغ کل: €{st['total']}\n\n"
     "⏳ سفارش شما در انتظار تأیید ادمین است."
         )
+        context.bot.send_message(
+            ADMIN_CHAT_ID,
+            f"🆕 سفارش جدید\n\n"
+            f"🧾 شماره سفارش: {order_no}\n"
+            f"👤 نام: {st['fullname']}\n"
+            f"📞 تلفن: {st['phone']}\n"
+            f"📍 آدرس: {st['address']}\n"
+            f"📮 کد پستی: {st['postcode']}\n"
+            f"🍽 غذا: {st['food_name']} × {st['qty']}\n"
+            f"⏰ بازه تحویل: {st.get('delivery_slot')}\n"
+            f"💶 مبلغ: €{st['total']}",
+            reply_markup=admin_keyboard(order_no)
+        )
+        reset_user(uid)
+        return
 
     # ---------------- DELIVERY SLOT ----------------
     if q.data.startswith("slot_"):
@@ -406,41 +421,6 @@ def callbacks(update: Update, context: CallbackContext):
                 [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
             ])
         )
-        return
-    # PAY
-    if st["step"] == "pay":
-
-        total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
-        st["total"] = total
-
-        update.message.reply_text(
-        f"💰 مبلغ نهایی: €{total}\n\n"
-        "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
-        "🙏 لطفاً پس از پرداخت، روی دکمه «پرداخت انجام شد» بزنید.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
-                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
-            ])
-        )
-            
-        
-    # ADMIN MESSAGE
-        context.bot.send_message(
-            ADMIN_CHAT_ID,
-            f"⚠️ سفارش جدید برای بررسی\n\n"
-            f"شماره سفارش: {order_no}\n"
-            f"👤 نام: {st['fullname']}\n"
-            f"📞 تلفن: {st['phone']}\n"
-            f"📍 آدرس: {st['address']}\n"
-            f"📮 کد پستی: {st['postcode']}\n"
-            f"💳 پرداخت: {st['payment_method']}\n\n"
-            f"🍽 غذا: {st['food_name']} × {st['qty']}\n"
-            f"🥄 قاشق/چنگال: {st.get('cutlery_qty',0)}\n"
-            f"💶 مبلغ نهایی: €{st['total']}",
-            reply_markup=admin_keyboard(order_no)
-        )
-
-        reset_user(uid)
         return
 
     # ---------------- ADMIN APPROVAL ----------------
