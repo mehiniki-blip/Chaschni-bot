@@ -55,6 +55,16 @@ PICKUP_ADDRESS_SHORT = "Tannenbergallee (Hannover)"
 # ---------- DB ----------
 conn = sqlite3.connect("orders.db", check_same_thread=False)
 cur = conn.cursor()
+# --- ADD DELIVERY TIME COLUMNS (SAFE MIGRATION) ---
+try:
+    cur.execute("ALTER TABLE orders ADD COLUMN delivery_day TEXT")
+except sqlite3.OperationalError:
+    pass  # column already exists
+
+try:
+    cur.execute("ALTER TABLE orders ADD COLUMN delivery_slot TEXT")
+except sqlite3.OperationalError:
+    pass  # column already exists
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS orders (
@@ -304,13 +314,11 @@ def callbacks(update: Update, context: CallbackContext):
         return
 
     # ---------------- PAYMENT CONFIRM ----------------
-    if q.data in ["paid_paypal", "paid_cash"]:
+    if q.data == "paid_paypal":
         st = user_state.get(uid)
 
         if q.data == "paid_paypal":
             st["payment_method"] = "PayPal"
-        else:
-            st["payment_method"] = "Cash"
 
         order_no = create_order(
             uid,
@@ -656,7 +664,12 @@ def handle_text(update: Update, context: CallbackContext):
 
             update.message.reply_text(
                 f"💶 مبلغ نهایی: €{total}\n"
-                "💳 لطفاً روش پرداخت را انتخاب کنید:",
+                f"💶 مبلغ نهایی سفارش: €{total}\n\n"
+                "💳 پرداخت سفارش صرفاً از طریق PayPal انجام می‌شود.\n"
+                "🔒 این روش به‌منظور حفظ امنیت پرداخت‌ها و ثبت قطعی پیش‌سفارش‌ها انتخاب شده است.\n\n"
+                "🍽 با توجه به اینکه سفارش‌ها به‌صورت پیش‌سفارش و بر اساس برنامه تحویل آماده می‌شوند،\n"
+                "پرداخت آنلاین به ما امکان می‌دهد سفارش شما را با دقت و اطمینان کامل برنامه‌ریزی و آماده‌سازی کنیم.\n\n"
+                "🙏 خواهشمندیم پس از انجام پرداخت، جهت نهایی شدن سفارش، دکمه «پرداخت انجام شد» را انتخاب فرمایید."
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("💳 پرداخت PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
                     [InlineKeyboardButton("✔️ پرداخت انجام شد", callback_data="paid_paypal")]
@@ -674,10 +687,14 @@ def handle_text(update: Update, context: CallbackContext):
 
         update.message.reply_text(
             f"💶 مبلغ نهایی: €{total}\n"
-            "💳 لطفاً روش پرداخت را انتخاب کنید:",
+            f"💶 مبلغ نهایی سفارش: €{total}\n\n"
+            "💳 پرداخت سفارش صرفاً از طریق PayPal انجام می‌شود.\n"
+            "🔒 این روش به‌منظور حفظ امنیت پرداخت‌ها و ثبت قطعی پیش‌سفارش‌ها انتخاب شده است.\n\n"
+            "🍽 با توجه به اینکه سفارش‌ها به‌صورت پیش‌سفارش و بر اساس برنامه تحویل آماده می‌شوند،\n"
+            "پرداخت آنلاین به ما امکان می‌دهد سفارش شما را با دقت و اطمینان کامل برنامه‌ریزی و آماده‌سازی کنیم.\n\n"
+            "🙏 خواهشمندیم پس از انجام پرداخت، جهت نهایی شدن سفارش، دکمه «پرداخت انجام شد» را انتخاب فرمایید."
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💳 پرداخت PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
-                [InlineKeyboardButton("💵 پرداخت نقدی در محل", callback_data="paid_cash")],
                 [InlineKeyboardButton("✔️ پرداخت انجام شد", callback_data="paid_paypal")]
             ])
         )
