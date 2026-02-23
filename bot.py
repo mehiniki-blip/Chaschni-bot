@@ -213,6 +213,28 @@ def admin_keyboard(order_no):
     ])
 
 def pickup_keyboard():
+
+def delivery_slot_keyboard():
+    slots = []
+    hour = 12
+    minute = 0
+
+    while hour < 17:
+        start = f"{hour:02d}:{minute:02d}"
+        minute += 30
+        if minute == 60:
+            hour += 1
+            minute = 0
+        end = f"{hour:02d}:{minute:02d}"
+
+        slots.append([
+            InlineKeyboardButton(
+                f"⏰ {start} – {end}",
+                callback_data=f"slot_{start}_{end}"
+            )
+        ])
+
+    return InlineKeyboardMarkup(slots)    
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("بله ادامه بده", callback_data="pickup_yes"),
@@ -343,6 +365,18 @@ def callbacks(update: Update, context: CallbackContext):
     "⏳ سفارش شما در انتظار تأیید ادمین است."
         )
 
+    # ---------------- DELIVERY SLOT ----------------
+    if q.data.startswith("slot_"):
+        _, start, end = q.data.split("_")
+        st["delivery_slot"] = f"{start} – {end}"
+        st["step"] = "pay"
+
+        q.edit_message_text(
+        f"✅ بازه تحویل انتخاب شد:\n"
+        f"⏰ {start} – {end}\n\n"
+        "لطفاً پرداخت را انجام دهید."
+    )
+    return        
         # ADMIN MESSAGE
         context.bot.send_message(
             ADMIN_CHAT_ID,
@@ -657,8 +691,12 @@ def handle_text(update: Update, context: CallbackContext):
             update.message.reply_text("🏠 لطفاً آدرس کامل را وارد کنید:")
         else:
             st["address"] = "تحویل حضوری"
-            st["step"] = "pay"
-
+            st["step"] = "delivery_slot"
+            update.message.reply_text(
+            "⏰ لطفاً بازه زمانی دلخواه برای تحویل غذا را انتخاب کنید:",
+        reply_markup=delivery_slot_keyboard()
+)
+        return
             total = st["food_total"] + (st["cutlery_qty"] * CUTLERY_PRICE)
             st["total"] = total
 
@@ -678,9 +716,14 @@ def handle_text(update: Update, context: CallbackContext):
         return
 
     # ADDRESS
-    if st["step"] == "address":
-        st["address"] = text
-        st["step"] = "pay"
+if st["step"] == "address":
+    st["address"] = text
+    st["step"] = "delivery_slot"
+    update.message.reply_text(
+        "⏰ لطفاً بازه زمانی دلخواه برای تحویل غذا را انتخاب کنید:",
+        reply_markup=delivery_slot_keyboard()
+    )
+    return
 
         total = st["food_total"] + (st["cutlery_qty"] * CUTLERY_PRICE)
         st["total"] = total
