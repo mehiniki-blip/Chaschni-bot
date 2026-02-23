@@ -215,27 +215,29 @@ def admin_keyboard(order_no):
 def pickup_keyboard():
 
 def delivery_slot_keyboard():
-    slots = []
+    buttons = []
+
     hour = 12
     minute = 0
 
     while hour < 17:
         start = f"{hour:02d}:{minute:02d}"
+
         minute += 30
         if minute == 60:
             hour += 1
             minute = 0
+
         end = f"{hour:02d}:{minute:02d}"
 
-        slots.append([
+        buttons.append([
             InlineKeyboardButton(
-                f"⏰ {start} – {end}",
+                f"🕒 {start} تا {end}",
                 callback_data=f"slot_{start}_{end}"
             )
         ])
 
-    return InlineKeyboardMarkup(slots)   
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(buttons)
         [
             InlineKeyboardButton("بله ادامه بده", callback_data="pickup_yes"),
             InlineKeyboardButton("لغو سفارش", callback_data="pickup_no")
