@@ -370,31 +370,31 @@ def callbacks(update: Update, context: CallbackContext):
 
     # ---------------- DELIVERY SLOT ----------------
     if q.data.startswith("slot_"):
-    _, start, end = q.data.split("_")
-    st["delivery_slot"] = f"{start} – {end}"
+        _, start, end = q.data.split("_")
+        st["delivery_slot"] = f"{start} – {end}"
 
     # محاسبه مبلغ نهایی
-    total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
-    st["total"] = total
-    st["step"] = "pay"
+        total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
+        st["total"] = total
+        st["step"] = "pay"
 
-    q.edit_message_text(
-        f"✅ بازه تحویل انتخاب شد:\n"
-        f"⏰ {start} – {end}\n\n"
-        f"💰 مبلغ نهایی: €{total}\n\n"
-        "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
-        "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
-    )
+        q.edit_message_text(
+            f"✅ بازه تحویل انتخاب شد:\n"
+            f"⏰ {start} – {end}\n\n"
+            f"💰 مبلغ نهایی: €{total}\n\n"
+            "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
+            "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
+        )
 
-    context.bot.send_message(
-        chat_id=uid,
-        text="لینک پرداخت:",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
-            [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
-        ])
-    )
-    return
+        context.bot.send_message(
+            chat_id=uid,
+            text="لینک پرداخت:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
+                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+            ])
+        )
+        return
     # PAY
     if st["step"] == "pay":
 
