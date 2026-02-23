@@ -383,7 +383,7 @@ def callbacks(update: Update, context: CallbackContext):
     # PAY
     if st["step"] == "pay":
 
-        total = st["food_total"] + (st["cutlery_qty"] * CUTLERY_PRICE)
+        total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
         st["total"] = total
 
         update.message.reply_text(
@@ -702,33 +702,32 @@ def handle_text(update: Update, context: CallbackContext):
         update.message.reply_text("📞 لطفاً شماره تماس را وارد کنید:")
         return
 
-# PHONE
-if st["step"] == "phone":
-    st["phone"] = text
+    # PHONE
+    if st["step"] == "phone":
+        st["phone"] = text
 
-    if st["delivery_method"] == "delivery":
-        st["step"] = "address"
-        update.message.reply_text("🏠 لطفاً آدرس کامل را وارد کنید:")
-        return
-    else:
-        # pickup
-        st["address"] = "تحویل حضوری"
+        if st["delivery_method"] == "delivery":
+            st["step"] = "address"
+            update.message.reply_text("🏠 لطفاً آدرس کامل را وارد کنید:")
+            return
+        else:
+            st["address"] = "تحویل حضوری"
+            st["step"] = "delivery_slot"
+            update.message.reply_text(
+                "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
+                reply_markup=delivery_slot_keyboard()
+            )
+            return
+
+    # ADDRESS
+    if st["step"] == "address":
+        st["address"] = text
         st["step"] = "delivery_slot"
         update.message.reply_text(
             "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
             reply_markup=delivery_slot_keyboard()
         )
         return
-    
-# ADDRESS
-if st["step"] == "address":
-    st["address"] = text
-    st["step"] = "delivery_slot"
-    update.message.reply_text(
-        "⏰ لطفاً بازه زمانی تحویل غذا را انتخاب کنید:",
-        reply_markup=delivery_slot_keyboard()
-    )
-    return
 # ----------- WEBHOOK MODE -----------
 app = Flask(__name__)
 dp = None
