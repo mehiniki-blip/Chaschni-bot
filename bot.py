@@ -418,9 +418,14 @@ def callbacks(update: Update, context: CallbackContext):
 
     # ---------------- DELIVERY SLOT ----------------
     if q.data.startswith("slot_"):
+        st = user_state.get(uid)
+
+        if not st or st.get("step") != "delivery_slot":
+            q.answer("⏳ لطفاً سفارش را دوباره شروع کنید", show_alert=True)
+            return
+
         _, start, end = q.data.split("_")
         slot = f"{start} – {end}"
-
         # check slot capacity
         cur.execute("""
             SELECT COUNT(*) FROM orders
