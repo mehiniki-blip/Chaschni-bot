@@ -29,6 +29,7 @@ PAYPAL_BASE_LINK = "https://www.paypal.com/paypalme/Chaschni?country.x=DE&locale
 CONTACT_USERNAME = "Chaschni"
 CUTLERY_PRICE = 0.30
 MAX_DAILY = 15
+MAX_SLOT_CAPACITY = 4
 
 TIMEZONE = ZoneInfo("Europe/Berlin")
 
@@ -286,9 +287,10 @@ def start(update: Update, context: CallbackContext):
             f"⚙️ پنل مدیریت\n{status}",
             reply_markup=ReplyKeyboardMarkup(
                 [
-                    ["📊 ریپورت"],
-                    ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
-                    ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
+                ["📊 ریپورت"],
+                ["📣 ارسال یادآوری فردا"],
+                ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
+                ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
                 ],
                 resize_keyboard=True
             )
@@ -409,19 +411,33 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- DELIVERY SLOT ----------------
     if q.data.startswith("slot_"):
         _, start, end = q.data.split("_")
-        st["delivery_slot"] = f"{start} – {end}"
+        slot = f"{start} – {end}"
 
-    # محاسبه مبلغ نهایی
+        # check slot capacity
+        cur.execute("""
+            SELECT COUNT(*) FROM orders
+            WHERE delivery_day = ?
+            AND delivery_slot = ?
+            AND status != 'canceled'
+        """, (st["delivery_day"], slot))
+
+        count = cur.fetchone()[0]
+
+        if count >= MAX_SLOT_CAPACITY:
+            q.answer("❌ این بازه تکمیل شده است", show_alert=True)
+            return
+
+        st["delivery_slot"] = slot
+
         total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
         st["total"] = total
         st["step"] = "pay"
 
         q.edit_message_text(
             f"✅ بازه تحویل انتخاب شد:\n"
-            f"⏰ {start} – {end}\n\n"
-            f"💰 مبلغ نهایی: €{total}\n\n"
-            "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
-            "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
+            f"📅 {st['delivery_day']}\n"
+            f"⏰ {slot}\n\n"
+            f"💰 مبلغ نهایی: €{total}"
         )
 
         context.bot.send_message(
@@ -445,11 +461,17 @@ def callbacks(update: Update, context: CallbackContext):
 
             # unified message
             msg = (
-                "🍽 سفارش شما تأیید شد ممنون از اعتماد شما!\n"
-                "🚗 سفارش شما در روز تحویل ارسال می‌شود." if order["delivery_method"] == "delivery"
-                else
-                "🍽 سفارش شما تأیید شد ممنون از اعتماد شما!\n"
-                f"📍 لطفاً برای تحویل حضوری در روز معین شده به این آدرس مراجعه کنید:\n{PICKUP_ADDRESS_FULL}"
+            "✅ سفارش شما تأیید شد 🌸\n\n"
+                f"📅 روز تحویل: {order['delivery_day']}\n"
+                f"⏰ بازه تحویل: {order['delivery_slot']}\n\n"
+                f"🍽 {order['food_name']} × {order['qty']}\n\n"
+                + (
+            "🚗 سفارش شما در بازه انتخاب‌شده ارسال می‌شود.\n"
+                    if order["delivery_method"] == "delivery"
+                    else
+                    f"📍 تحویل حضوری:\n{PICKUP_ADDRESS_FULL}\n"
+                ) +
+                "\n🙏 لطفاً در این بازه در دسترس باشید"
             )
 
             context.bot.send_message(user_id, msg)
@@ -532,6 +554,36 @@ def handle_text(update: Update, context: CallbackContext):
         return
 
 
+    # --- ADMIN: SEND DELIVERY REMINDER ---
+    if uid == ADMIN_CHAT_ID and text == "📣 ارسال یادآوری فردا":
+        tomorrow = "دوشنبه" if get_target_delivery_day() == "monday" else "پنج‌شنبه"
+
+        cur.execute("""
+            SELECT user_id, food_name, qty, delivery_slot
+            FROM orders
+            WHERE status = 'approved'
+            AND delivery_day = ?
+        """, (tomorrow,))
+
+        rows = cur.fetchall()
+
+        if not rows:
+            update.message.reply_text("هیچ سفارشی برای فردا وجود ندارد.")
+            return
+
+        for r in rows:
+            context.bot.send_message(
+                r[0],
+                f"⏰ یادآوری سفارش\n\n"
+                f"📅 فردا ({tomorrow})\n"
+                f"🍽 {r[1]} × {r[2]}\n"
+                f"⏰ بازه تحویل: {r[3]}\n\n"
+                "🙏 لطفاً در این بازه در دسترس باشید"
+            )
+
+        update.message.reply_text("✅ پیام یادآوری ارسال شد")
+        return
+        
     # --- REPORT (ADMIN ONLY) ---
     if uid == ADMIN_CHAT_ID and text.strip() in ["📊 ریپورت", "ریپورت", "report", "/report"]:
         cur.execute("SELECT * FROM orders ORDER BY id DESC")
