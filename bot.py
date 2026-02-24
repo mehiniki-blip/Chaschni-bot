@@ -433,42 +433,42 @@ def callbacks(update: Update, context: CallbackContext):
         _, start, end = q.data.split("_")
         slot = f"{start} – {end}"
 
-    # check slot capacity
-    cur.execute("""
-        SELECT COUNT(*) FROM orders
-        WHERE delivery_day = ?
-        AND delivery_slot = ?
-        AND status != 'canceled'
-    """, (st["delivery_day"], slot))
+        # check slot capacity
+        cur.execute("""
+            SELECT COUNT(*) FROM orders
+            WHERE delivery_day = ?
+            AND delivery_slot = ?
+            AND status != 'canceled'
+        """, (st["delivery_day"], slot))
 
-    count = cur.fetchone()[0]
+        count = cur.fetchone()[0]
 
-    if count >= MAX_SLOT_CAPACITY:
-        q.answer("❌ این بازه تکمیل شده است", show_alert=True)
+        if count >= MAX_SLOT_CAPACITY:
+            q.answer("❌ این بازه تکمیل شده است", show_alert=True)
+            return
+
+        st["delivery_slot"] = slot
+
+        total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
+        st["total"] = total
+        st["step"] = "pay"
+
+        q.edit_message_text(
+            f"✅ بازه تحویل انتخاب شد:\n"
+            f"📅 {st['delivery_day']}\n"
+            f"⏰ {slot}\n\n"
+            f"💰 مبلغ نهایی: €{total}"
+        )
+
+        context.bot.send_message(
+            chat_id=uid,
+            text="لینک پرداخت:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
+                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+            ])
+        )
         return
-
-    st["delivery_slot"] = slot
-
-    total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
-    st["total"] = total
-    st["step"] = "pay"
-
-    q.edit_message_text(
-        f"✅ بازه تحویل انتخاب شد:\n"
-        f"📅 {st['delivery_day']}\n"
-        f"⏰ {slot}\n\n"
-        f"💰 مبلغ نهایی: €{total}"
-    )
-
-    context.bot.send_message(
-        chat_id=uid,
-        text="لینک پرداخت:",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
-            [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
-        ])
-    )
-    return
 
     # ---------------- ADMIN APPROVAL ----------------
     if q.data.startswith("admin_"):
@@ -821,9 +821,11 @@ def handle_text(update: Update, context: CallbackContext):
 
             target = get_target_delivery_day()
             if target == "monday":
-                st["delivery_day"] = DAY_LABEL[get_target_delivery_day()]
+                st["delivery_day_key"] = get_target_delivery_day()      # monday / thursday
+                st["delivery_day"] = DAY_LABEL[st["delivery_day_key"]]  # دوشنبه / پنج‌شنبه
             elif target == "thursday":
-                st["delivery_day"] = DAY_LABEL[get_target_delivery_day()]
+                st["delivery_day_key"] = get_target_delivery_day()      # monday / thursday
+                st["delivery_day"] = DAY_LABEL[st["delivery_day_key"]]  # دوشنبه / پنج‌شنبه
 
             update.message.reply_text(
                 f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
@@ -837,9 +839,11 @@ def handle_text(update: Update, context: CallbackContext):
 
         target = get_target_delivery_day()
         if target == "monday":
-            st["delivery_day"] = DAY_LABEL[get_target_delivery_day()]
+            st["delivery_day_key"] = get_target_delivery_day()      # monday / thursday
+            st["delivery_day"] = DAY_LABEL[st["delivery_day_key"]]  # دوشنبه / پنج‌شنبه
         elif target == "thursday":
-            st["delivery_day"] = DAY_LABEL[get_target_delivery_day()]
+            st["delivery_day_key"] = get_target_delivery_day()      # monday / thursday
+            st["delivery_day"] = DAY_LABEL[st["delivery_day_key"]]  # دوشنبه / پنج‌شنبه
         else:
             update.message.reply_text("امکان ثبت سفارش در حال حاضر وجود ندارد.")
             reset_user(uid)
