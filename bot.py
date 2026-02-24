@@ -307,7 +307,11 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- FOOD SELECTION ----------------
     if q.data.startswith("food_"):
         key = q.data.replace("food_", "")
-        foods = get_today_foods()
+        foods = get_foods_for_target_day()   # ✅ این خط اصلاح شد
+
+        if key not in foods:
+            q.answer("این غذا در منوی امروز نیست", show_alert=True)
+            return
 
         f = foods[key]
         user_state[uid] = {
