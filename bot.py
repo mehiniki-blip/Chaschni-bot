@@ -307,11 +307,20 @@ def callbacks(update: Update, context: CallbackContext):
             return
 
         f = foods[key]
+        target = get_target_delivery_day()
+        if target == "monday":
+            delivery_day_fa = "دوشنبه"
+        elif target == "thursday":
+            delivery_day_fa = "پنج‌شنبه"
+        else:
+            delivery_day_fa = None
+
         user_state[uid] = {
             "step": "qty",
             "food_key": key,
             "food_name": f["name"],
-            "price": f["price"]
+            "price": f["price"],
+            "delivery_day": delivery_day_fa
         }
 
         q.edit_message_text(
