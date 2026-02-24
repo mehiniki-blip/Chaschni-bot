@@ -663,8 +663,10 @@ def handle_text(update: Update, context: CallbackContext):
         qty = int(text)
         # چک ظرفیت روزانه غذا
         cur.execute("""
-            SELECT SUM(qty) FROM orders
-            WHERE food_key = ? AND date(created_at) = date('now', 'localtime')
+            SELECT SUM(qty)
+            FROM orders
+            WHERE food_key = ?
+            AND date(created_at) = date('now', 'localtime')
         """, (st["food_key"],))
         sold_today = cur.fetchone()[0] or 0
 
