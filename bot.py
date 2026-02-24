@@ -427,7 +427,13 @@ def callbacks(update: Update, context: CallbackContext):
         st = user_state.get(uid)
 
         if not st or st.get("step") != "delivery_slot":
-            q.answer("⏳ لطفاً سفارش را دوباره شروع کنید", show_alert=True)
+            reset_user(uid)
+            q.answer()
+            context.bot.send_message(
+                uid,
+        "⏳ سفارش شما منقضی شده.\n"
+        "لطفاً دوباره از منوی پایین شروع کنید."
+            )
             return
 
         _, start, end = q.data.split("_")
@@ -439,7 +445,7 @@ def callbacks(update: Update, context: CallbackContext):
             WHERE delivery_day = ?
             AND delivery_slot = ?
             AND status != 'canceled'
-        """, (st["delivery_day"], slot))
+        """, (st["delivery_day_key"], slot))
 
         count = cur.fetchone()[0]
 
