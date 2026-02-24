@@ -383,9 +383,11 @@ def callbacks(update: Update, context: CallbackContext):
             f"💳 پرداخت ثبت شد.\n"
             f"🧾 شماره سفارش: {order_no}\n\n"
             f"🍽 {st['food_name']} × {st['qty']}\n"
+            f"📅 روز تحویل: {st['delivery_day']}\n"
+            f"⏰ بازه تحویل: {st['delivery_slot']}\n"
             f"🥄 قاشق/چنگال: {st.get('cutlery_qty',0)}\n"
             f"💶 مبلغ کل: €{st['total']}\n\n"
-    "⏳ سفارش شما در انتظار تأیید ادمین است."
+            "⏳ سفارش شما در انتظار تأیید ادمین است."
         )
         context.bot.send_message(
             ADMIN_CHAT_ID,
@@ -395,8 +397,9 @@ def callbacks(update: Update, context: CallbackContext):
             f"📞 تلفن: {st['phone']}\n"
             f"📍 آدرس: {st['address']}\n"
             f"📮 کد پستی: {st['postcode']}\n"
+            f"📅 روز تحویل: {st['delivery_day']}\n"
+            f"⏰ بازه تحویل: {st['delivery_slot']}\n"
             f"🍽 غذا: {st['food_name']} × {st['qty']}\n"
-            f"⏰ بازه تحویل: {st.get('delivery_slot')}\n"
             f"💶 مبلغ: €{st['total']}",
             reply_markup=admin_keyboard(order_no)
         )
@@ -738,32 +741,35 @@ def handle_text(update: Update, context: CallbackContext):
         else:
             st["address"] = "تحویل حضوری"
             st["step"] = "delivery_slot"
-            day = datetime.now(TIMEZONE).weekday()
-            if day in [1, 2]:
-                delivery_day = "پنج‌شنبه"
-            elif day in [4, 5, 6]:
-                delivery_day = "دوشنبه"
-            else:
-                delivery_day = None
+
+            target = get_target_delivery_day()
+            if target == "monday":
+                st["delivery_day"] = "دوشنبه"
+            elif target == "thursday":
+                st["delivery_day"] = "پنج‌شنبه"
+
             update.message.reply_text(
-                f"⏰ لطفاً بازه زمانی تحویل غذا برای {delivery_day} را انتخاب کنید:",
+                f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
                 reply_markup=delivery_slot_keyboard()
             )
             return
-
     # ADDRESS
     if st["step"] == "address":
         st["address"] = text
         st["step"] = "delivery_slot"
-        day = datetime.now(TIMEZONE).weekday()
-        if day in [1, 2]:
-            delivery_day = "پنج‌شنبه"
-        elif day in [4, 5, 6]:
-            delivery_day = "دوشنبه"
+
+        target = get_target_delivery_day()
+        if target == "monday":
+            st["delivery_day"] = "دوشنبه"
+        elif target == "thursday":
+            st["delivery_day"] = "پنج‌شنبه"
         else:
-            delivery_day = None
+            update.message.reply_text("امکان ثبت سفارش در حال حاضر وجود ندارد.")
+            reset_user(uid)
+            return
+
         update.message.reply_text(
-            f"⏰ لطفاً بازه زمانی تحویل غذا برای {delivery_day} را انتخاب کنید:",
+            f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
             reply_markup=delivery_slot_keyboard()
         )
         return
