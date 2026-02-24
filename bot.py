@@ -29,7 +29,6 @@ PAYPAL_BASE_LINK = "https://www.paypal.com/paypalme/Chaschni?country.x=DE&locale
 CONTACT_USERNAME = "Chaschni"
 CUTLERY_PRICE = 0.30
 MAX_DAILY = 15
-MAX_SLOT_CAPACITY = 4
 
 TIMEZONE = ZoneInfo("Europe/Berlin")
 
@@ -94,11 +93,6 @@ user_msg_count = {}     # تعداد پیام‌های اخیر
 SPAM_WINDOW = 4         # بازه زمانی (ثانیه)
 SPAM_LIMIT = 5          # حداکثر پیام مجاز در این بازه
 
-DAY_LABEL = {
-    "monday": "دوشنبه",
-    "thursday": "پنج‌شنبه"
-}
-
 def reset_user(uid):
     user_state.pop(uid, None)
 
@@ -128,6 +122,18 @@ def is_working_time():
 
     # بقیه روزها سفارش‌گیری بسته است
     return False
+def get_target_delivery_day():
+    today = datetime.now(TIMEZONE).weekday()
+
+    # سه‌شنبه / چهارشنبه → پنجشنبه
+    if today in [1, 2]:
+        return "پنج‌شنبه"
+
+    # جمعه / شنبه / یکشنبه → دوشنبه
+    if today in [4, 5, 6]:
+        return "دوشنبه"
+
+    return None  # روز تحویل (که سفارش بسته است)
 
 def get_target_delivery_day():
     day = datetime.now(TIMEZONE).weekday()
@@ -142,49 +148,31 @@ def get_target_delivery_day():
 
     return None  # دوشنبه یا پنج‌شنبه (روز تحویل → سفارش بسته)
     
-def create_order(
-    user_id,
-    food_key,
-    food_name,
-    qty,
-    total,
-    cutlery_qty,
-    payment_method,
-    delivery_day,
-    delivery_slot
-):
+def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method):
     from random import randint
 
     today = datetime.now(TIMEZONE).strftime("%Y%m%d")
     rand = randint(100, 999)
     order_no = f"CH-{today}-{rand}"
 
-    cur.execute(
-        """
+    cur.execute("""
         INSERT INTO orders
-        (order_no, user_id, food_key, food_name, qty, cutlery_qty,
-         total, status, payment_method, created_at, delivery_day, delivery_slot)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            order_no,
-            user_id,
-            food_key,
-            food_name,
-            qty,
-            cutlery_qty,
-            total,
-            "pending",
-            payment_method,
-            datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-            delivery_day,
-            delivery_slot,
-        )
-    )
-
+        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+    """, (
+        order_no,
+        user_id,
+        food_key,
+        food_name,
+        qty,
+        cutlery_qty,
+        total,
+        payment_method,
+        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
+    ))
     conn.commit()
     return order_no
-    
+
 def close_order(order_no, status):
     cur.execute("""
         UPDATE orders SET status=?, payment_checked_at=?
@@ -298,10 +286,9 @@ def start(update: Update, context: CallbackContext):
             f"⚙️ پنل مدیریت\n{status}",
             reply_markup=ReplyKeyboardMarkup(
                 [
-                ["📊 ریپورت"],
-                ["📣 ارسال یادآوری فردا"],
-                ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
-                ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
+                    ["📊 ریپورت"],
+                    ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
+                    ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
                 ],
                 resize_keyboard=True
             )
@@ -316,7 +303,6 @@ def callbacks(update: Update, context: CallbackContext):
     q.answer()
 
     st = user_state.get(uid)
-
 
     # ---------------- FOOD SELECTION ----------------
     if q.data.startswith("food_"):
@@ -386,9 +372,7 @@ def callbacks(update: Update, context: CallbackContext):
             st["qty"],
             st["total"],
             st.get("cutlery_qty", 0),
-            st["payment_method"],
-            st["delivery_day"],
-            st["delivery_slot"]
+            st["payment_method"]
         )
 
         orders_runtime[order_no] = st
@@ -424,46 +408,20 @@ def callbacks(update: Update, context: CallbackContext):
 
     # ---------------- DELIVERY SLOT ----------------
     if q.data.startswith("slot_"):
-        st = user_state.get(uid)
-
-        if not st or st.get("step") != "delivery_slot":
-            reset_user(uid)
-            q.answer()
-            context.bot.send_message(
-                uid,
-        "⏳ سفارش شما منقضی شده.\n"
-        "لطفاً دوباره از منوی پایین شروع کنید."
-            )
-            return
-
         _, start, end = q.data.split("_")
-        slot = f"{start} – {end}"
+        st["delivery_slot"] = f"{start} – {end}"
 
-        # check slot capacity
-        cur.execute("""
-            SELECT COUNT(*) FROM orders
-            WHERE delivery_day = ?
-            AND delivery_slot = ?
-            AND status != 'canceled'
-        """, (st["delivery_day_key"], slot))
-
-        count = cur.fetchone()[0]
-
-        if count >= MAX_SLOT_CAPACITY:
-            q.answer("❌ این بازه تکمیل شده است", show_alert=True)
-            return
-
-        st["delivery_slot"] = slot
-
+    # محاسبه مبلغ نهایی
         total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
         st["total"] = total
         st["step"] = "pay"
 
         q.edit_message_text(
             f"✅ بازه تحویل انتخاب شد:\n"
-            f"📅 {st['delivery_day']}\n"
-            f"⏰ {slot}\n\n"
-            f"💰 مبلغ نهایی: €{total}"
+            f"⏰ {start} – {end}\n\n"
+            f"💰 مبلغ نهایی: €{total}\n\n"
+            "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
+            "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
         )
 
         context.bot.send_message(
@@ -487,17 +445,11 @@ def callbacks(update: Update, context: CallbackContext):
 
             # unified message
             msg = (
-            "✅ سفارش شما تأیید شد 🌸\n\n"
-                f"📅 روز تحویل: {order['delivery_day']}\n"
-                f"⏰ بازه تحویل: {order['delivery_slot']}\n\n"
-                f"🍽 {order['food_name']} × {order['qty']}\n\n"
-                + (
-            "🚗 سفارش شما در بازه انتخاب‌شده ارسال می‌شود.\n"
-                    if order["delivery_method"] == "delivery"
-                    else
-                    f"📍 تحویل حضوری:\n{PICKUP_ADDRESS_FULL}\n"
-                ) +
-                "\n🙏 لطفاً در این بازه در دسترس باشید"
+                "🍽 سفارش شما تأیید شد ممنون از اعتماد شما!\n"
+                "🚗 سفارش شما در روز تحویل ارسال می‌شود." if order["delivery_method"] == "delivery"
+                else
+                "🍽 سفارش شما تأیید شد ممنون از اعتماد شما!\n"
+                f"📍 لطفاً برای تحویل حضوری در روز معین شده به این آدرس مراجعه کنید:\n{PICKUP_ADDRESS_FULL}"
             )
 
             context.bot.send_message(user_id, msg)
@@ -580,36 +532,6 @@ def handle_text(update: Update, context: CallbackContext):
         return
 
 
-    # --- ADMIN: SEND DELIVERY REMINDER ---
-    if uid == ADMIN_CHAT_ID and text == "📣 ارسال یادآوری فردا":
-        tomorrow = "دوشنبه" if get_target_delivery_day() == "monday" else "پنج‌شنبه"
-
-        cur.execute("""
-            SELECT user_id, food_name, qty, delivery_slot
-            FROM orders
-            WHERE status = 'approved'
-            AND delivery_day = ?
-        """, (tomorrow,))
-
-        rows = cur.fetchall()
-
-        if not rows:
-            update.message.reply_text("هیچ سفارشی برای فردا وجود ندارد.")
-            return
-
-        for r in rows:
-            context.bot.send_message(
-                r[0],
-                f"⏰ یادآوری سفارش\n\n"
-                f"📅 فردا ({tomorrow})\n"
-                f"🍽 {r[1]} × {r[2]}\n"
-                f"⏰ بازه تحویل: {r[3]}\n\n"
-                "🙏 لطفاً در این بازه در دسترس باشید"
-            )
-
-        update.message.reply_text("✅ پیام یادآوری ارسال شد")
-        return
-        
     # --- REPORT (ADMIN ONLY) ---
     if uid == ADMIN_CHAT_ID and text.strip() in ["📊 ریپورت", "ریپورت", "report", "/report"]:
         cur.execute("SELECT * FROM orders ORDER BY id DESC")
@@ -698,15 +620,10 @@ def handle_text(update: Update, context: CallbackContext):
 
         qty = int(text)
         # چک ظرفیت روزانه غذا
-        cur.execute(
-            """
-            SELECT SUM(qty)
-            FROM orders
-            WHERE food_key = ?
-            AND date(created_at) = date('now', 'localtime')
-            """,
-            (st["food_key"],)
-        )
+        cur.execute("""
+            SELECT SUM(qty) FROM orders
+            WHERE food_key = ? AND date(created_at) = date('now', 'localtime')
+        """, (st["food_key"],))
         sold_today = cur.fetchone()[0] or 0
 
         remaining = MAX_DAILY - sold_today
@@ -827,11 +744,9 @@ def handle_text(update: Update, context: CallbackContext):
 
             target = get_target_delivery_day()
             if target == "monday":
-                st["delivery_day_key"] = get_target_delivery_day()      # monday / thursday
-                st["delivery_day"] = DAY_LABEL[st["delivery_day_key"]]  # دوشنبه / پنج‌شنبه
+                st["delivery_day"] = "دوشنبه"
             elif target == "thursday":
-                st["delivery_day_key"] = get_target_delivery_day()      # monday / thursday
-                st["delivery_day"] = DAY_LABEL[st["delivery_day_key"]]  # دوشنبه / پنج‌شنبه
+                st["delivery_day"] = "پنج‌شنبه"
 
             update.message.reply_text(
                 f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
@@ -845,11 +760,9 @@ def handle_text(update: Update, context: CallbackContext):
 
         target = get_target_delivery_day()
         if target == "monday":
-            st["delivery_day_key"] = get_target_delivery_day()      # monday / thursday
-            st["delivery_day"] = DAY_LABEL[st["delivery_day_key"]]  # دوشنبه / پنج‌شنبه
+            st["delivery_day"] = "دوشنبه"
         elif target == "thursday":
-            st["delivery_day_key"] = get_target_delivery_day()      # monday / thursday
-            st["delivery_day"] = DAY_LABEL[st["delivery_day_key"]]  # دوشنبه / پنج‌شنبه
+            st["delivery_day"] = "پنج‌شنبه"
         else:
             update.message.reply_text("امکان ثبت سفارش در حال حاضر وجود ندارد.")
             reset_user(uid)
