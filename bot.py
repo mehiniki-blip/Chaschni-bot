@@ -628,11 +628,12 @@ def handle_text(update: Update, context: CallbackContext):
         qty = int(text)
         # چک ظرفیت روزانه غذا
         cur.execute("""
-            SELECT SUM(qty) FROM orders
+            SELECT COALESCE(SUM(qty), 0) FROM orders
             WHERE food_key = ?
               AND delivery_day = ?
         """, (st["food_key"], st["delivery_day"]))
-        sold_today = cur.fetchone()[0] or 0
+
+        sold_today = cur.fetchone()[0]
 
         remaining = MAX_DAILY - sold_today
 # جلوگیری از فروش بیشتر از ظرفیت روزانه
