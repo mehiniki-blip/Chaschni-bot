@@ -144,23 +144,29 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
     rand = randint(100, 999)
     order_no = f"CH-{today}-{rand}"
 
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO orders
         (order_no, user_id, food_key, food_name, qty, cutlery_qty, total,
          status, payment_method, created_at, delivery_day, delivery_slot)
-        
-        order_no = create_order(
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            order_no,
             uid,
             st["food_key"],
             st["food_name"],
             st["qty"],
-            st["total"],
             st.get("cutlery_qty", 0),
+            st["total"],
+            "pending",
             st["payment_method"],
+            datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
             st["delivery_day"],
-            st["delivery_slot"]
+            st["delivery_slot"],
         )
-    ))
+    )
+
     conn.commit()
     return order_no
 
