@@ -94,6 +94,11 @@ user_msg_count = {}     # تعداد پیام‌های اخیر
 SPAM_WINDOW = 4         # بازه زمانی (ثانیه)
 SPAM_LIMIT = 5          # حداکثر پیام مجاز در این بازه
 
+DAY_LABEL = {
+    "monday": "دوشنبه",
+    "thursday": "پنج‌شنبه"
+}
+
 def reset_user(uid):
     user_state.pop(uid, None)
 
@@ -816,9 +821,9 @@ def handle_text(update: Update, context: CallbackContext):
 
             target = get_target_delivery_day()
             if target == "monday":
-                st["delivery_day"] = get_target_delivery_day()  # monday / thursday
+                st["delivery_day"] = DAY_LABEL[get_target_delivery_day()]
             elif target == "thursday":
-                st["delivery_day"] = get_target_delivery_day()  # monday / thursday
+                st["delivery_day"] = DAY_LABEL[get_target_delivery_day()]
 
             update.message.reply_text(
                 f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
@@ -832,9 +837,9 @@ def handle_text(update: Update, context: CallbackContext):
 
         target = get_target_delivery_day()
         if target == "monday":
-            st["delivery_day"] = get_target_delivery_day()  # monday / thursday
+            st["delivery_day"] = DAY_LABEL[get_target_delivery_day()]
         elif target == "thursday":
-            st["delivery_day"] = get_target_delivery_day()  # monday / thursday
+            st["delivery_day"] = DAY_LABEL[get_target_delivery_day()]
         else:
             update.message.reply_text("امکان ثبت سفارش در حال حاضر وجود ندارد.")
             reset_user(uid)
