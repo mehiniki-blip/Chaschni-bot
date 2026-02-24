@@ -135,6 +135,19 @@ def get_target_delivery_day():
 
     return None  # روز تحویل (که سفارش بسته است)
 
+def get_target_delivery_day():
+    day = datetime.now(TIMEZONE).weekday()
+
+    # سه‌شنبه، چهارشنبه → پنج‌شنبه
+    if day in [1, 2]:
+        return "thursday"
+
+    # جمعه، شنبه، یکشنبه → دوشنبه
+    if day in [4, 5, 6]:
+        return "monday"
+
+    return None  # دوشنبه یا پنج‌شنبه (روز تحویل → سفارش بسته)
+    
 def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method):
     from random import randint
 
@@ -172,27 +185,18 @@ def close_order(order_no, status):
     conn.commit()
 
 # ---------- MENU BASED ON DAY ----------
-def get_today_foods():
-    day = datetime.now(TIMEZONE).weekday()
+def get_foods_for_target_day():
+    target = get_target_delivery_day()
 
-    if TEST_MODE:
+    if target == "monday":
         return {
             "farani": {"name": "🍮 فرنی", "price": 3.5},
             "salad": {"name": "🥗 سالاد ماکارونی", "price": 5},
             "ash": {"name": "🍲 آش رشته", "price": 6},
-            "ghorme": {"name": "🍛 قورمه سبزی", "price": 8.5},
-            "zereshk": {"name": "🍗 زرشک پلو با مرغ", "price": 9.5},
+            "ghorme": {"name": "🍛 قرمه سبزی", "price": 8.5},
         }
 
-    if day == 0:
-        return {
-            "farani": {"name": "🍮 فرنی", "price": 3.5},
-            "salad": {"name": "🥗 سالاد ماکارونی", "price": 5},
-            "ash": {"name": "🍲 آش رشته", "price": 6},
-            "ghorme": {"name": "🍛 قورمه سبزی", "price": 8.5},
-        }
-
-    if day == 3:
+    if target == "thursday":
         return {
             "farani": {"name": "🍮 فرنی", "price": 3.5},
             "salad": {"name": "🥗 سالاد ماکارونی", "price": 5},
@@ -210,7 +214,7 @@ def persistent_menu():
     )
 
 def food_keyboard():
-    foods = get_today_foods()
+    foods = get_foods_for_target_day()
     buttons = []
     for k, f in foods.items():
         buttons.append([InlineKeyboardButton(f"{f['name']} — {f['price']}€", callback_data=f"food_{k}")])
@@ -556,30 +560,30 @@ def handle_text(update: Update, context: CallbackContext):
             update.message.reply_text(
             "📦 سفارش‌گیری امروز بسته است.\n\n"
             "🚚 امروز فقط تحویل سفارش‌های ثبت‌شده انجام می‌شود.\n\n"
-            "🗓 ثبت سفارش فقط در روزهای مشخص قبل از تحویل امکان‌پذیر است.\n"
-            "🙏 لطفاً طبق برنامه پیش‌سفارش اقدام فرمایید."
+            "🗓 لطفاً در روزهای مجاز پیش‌سفارش اقدام فرمایید."
             )
             return
 
-        day = datetime.now(TIMEZONE).weekday()
+        target = get_target_delivery_day()
 
-        if day in [1, 2]:
-            day_name = "پنج‌شنبه"
-        elif day in [4, 5, 6]:
+        if target == "monday":
             day_name = "دوشنبه"
+        elif target == "thursday":
+            day_name = "پنج‌شنبه"
         else:
-            day_name = None
+            update.message.reply_text("امکان ثبت سفارش در حال حاضر وجود ندارد.")
+            return
 
         update.message.reply_text(
             f"📋 منوی {day_name}\n"
             f"⏰ لطفاً سفارش خود را قبل از روز تحویل ثبت کنید:"
         )
+
         update.message.reply_text(
-    "لطفاً انتخاب کنید:",
+        "لطفاً انتخاب کنید:",
             reply_markup=food_keyboard()
         )
         return
-
 
     # CANCEL
     if text == "❌ لغو سفارش":
