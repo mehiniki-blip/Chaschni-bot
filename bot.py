@@ -137,7 +137,17 @@ def get_target_delivery_day():
 
     return None  # دوشنبه یا پنج‌شنبه (روز تحویل → سفارش بسته)
     
-def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot):
+def create_order(
+    user_id,
+    food_key,
+    food_name,
+    qty,
+    total,
+    cutlery_qty,
+    payment_method,
+    delivery_day,
+    delivery_slot
+):
     from random import randint
 
     today = datetime.now(TIMEZONE).strftime("%Y%m%d")
@@ -147,29 +157,29 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
     cur.execute(
         """
         INSERT INTO orders
-        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total,
-         status, payment_method, created_at, delivery_day, delivery_slot)
+        (order_no, user_id, food_key, food_name, qty, cutlery_qty,
+         total, status, payment_method, created_at, delivery_day, delivery_slot)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             order_no,
-            uid,
-            st["food_key"],
-            st["food_name"],
-            st["qty"],
-            st.get("cutlery_qty", 0),
-            st["total"],
+            user_id,
+            food_key,
+            food_name,
+            qty,
+            cutlery_qty,
+            total,
             "pending",
-            st["payment_method"],
+            payment_method,
             datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-            st["delivery_day"],
-            st["delivery_slot"],
+            delivery_day,
+            delivery_slot,
         )
     )
 
     conn.commit()
     return order_no
-
+    
 def close_order(order_no, status):
     cur.execute("""
         UPDATE orders SET status=?, payment_checked_at=?
@@ -370,7 +380,9 @@ def callbacks(update: Update, context: CallbackContext):
             st["qty"],
             st["total"],
             st.get("cutlery_qty", 0),
-            st["payment_method"]
+            st["payment_method"],
+            st["delivery_day"],
+            st["delivery_slot"]
         )
 
         orders_runtime[order_no] = st
@@ -797,9 +809,9 @@ def handle_text(update: Update, context: CallbackContext):
 
             target = get_target_delivery_day()
             if target == "monday":
-                st["delivery_day"] = "دوشنبه"
+                st["delivery_day"] = get_target_delivery_day()  # monday / thursday
             elif target == "thursday":
-                st["delivery_day"] = "پنج‌شنبه"
+                st["delivery_day"] = get_target_delivery_day()  # monday / thursday
 
             update.message.reply_text(
                 f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
@@ -813,9 +825,9 @@ def handle_text(update: Update, context: CallbackContext):
 
         target = get_target_delivery_day()
         if target == "monday":
-            st["delivery_day"] = "دوشنبه"
+            st["delivery_day"] = get_target_delivery_day()  # monday / thursday
         elif target == "thursday":
-            st["delivery_day"] = "پنج‌شنبه"
+            st["delivery_day"] = get_target_delivery_day()  # monday / thursday
         else:
             update.message.reply_text("امکان ثبت سفارش در حال حاضر وجود ندارد.")
             reset_user(uid)
