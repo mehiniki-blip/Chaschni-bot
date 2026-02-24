@@ -264,7 +264,7 @@ def delivery_slot_keyboard():
 # ---------- COMMANDS ----------
 def start(update: Update, context: CallbackContext):
     update.message.reply_text(
-        "👋 خوش آمدید!\n\n"
+        "👋 خوش آمدید به ربات تهیه غذا در هانوفر !\n\n"
         "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
         "🚚 تحویل غذا فقط در روزهای:\n"
         "• دوشنبه\n"
@@ -442,13 +442,11 @@ def callbacks(update: Update, context: CallbackContext):
 
             # unified message
             msg = (
-                "🍽 سفارش شما تأیید شد!\n"
-                "⏳ زمان آماده‌سازی حدود ۲۰–۲۵ دقیقه\n\n"
-                "🚗 سفارش شما ارسال می‌شود." if order["delivery_method"] == "delivery"
+                "🍽 سفارش شما تأیید شد ممنون از اعتماد شما!\n"
+                "🚗 سفارش شما در روز تحویل ارسال می‌شود." if order["delivery_method"] == "delivery"
                 else
-                "🍽 سفارش شما تأیید شد!\n"
-                "⏳ زمان آماده‌سازی حدود ۲۰–۲۵ دقیقه\n\n"
-                f"📍 لطفاً برای تحویل حضوری به این آدرس مراجعه کنید:\n{PICKUP_ADDRESS_FULL}"
+                "🍽 سفارش شما تأیید شد ممنون از اعتماد شما!\n"
+                f"📍 لطفاً برای تحویل حضوری در روز معین شده به این آدرس مراجعه کنید:\n{PICKUP_ADDRESS_FULL}"
             )
 
             context.bot.send_message(user_id, msg)
