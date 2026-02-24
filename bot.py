@@ -122,6 +122,18 @@ def is_working_time():
 
     # بقیه روزها سفارش‌گیری بسته است
     return False
+def get_target_delivery_day():
+    today = datetime.now(TIMEZONE).weekday()
+
+    # سه‌شنبه / چهارشنبه → پنجشنبه
+    if today in [1, 2]:
+        return "پنج‌شنبه"
+
+    # جمعه / شنبه / یکشنبه → دوشنبه
+    if today in [4, 5, 6]:
+        return "دوشنبه"
+
+    return None  # روز تحویل (که سفارش بسته است)
 
 def get_target_delivery_day():
     day = datetime.now(TIMEZONE).weekday()
@@ -136,7 +148,7 @@ def get_target_delivery_day():
 
     return None  # دوشنبه یا پنج‌شنبه (روز تحویل → سفارش بسته)
     
-def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot):
+def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method):
     from random import randint
 
     today = datetime.now(TIMEZONE).strftime("%Y%m%d")
@@ -144,12 +156,9 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
     order_no = f"CH-{today}-{rand}"
 
     cur.execute("""
-        INSERT INTO orders (
-            order_no, user_id, food_key, food_name, qty,
-            cutlery_qty, total, status, payment_method,
-            created_at, delivery_day, delivery_slot
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+        INSERT INTO orders
+        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
     """, (
         order_no,
         user_id,
@@ -159,13 +168,11 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
         cutlery_qty,
         total,
         payment_method,
-        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-        delivery_day,
-        delivery_slot
+        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
     ))
     conn.commit()
     return order_no
-    
+
 def close_order(order_no, status):
     cur.execute("""
         UPDATE orders SET status=?, payment_checked_at=?
@@ -307,20 +314,11 @@ def callbacks(update: Update, context: CallbackContext):
             return
 
         f = foods[key]
-        target = get_target_delivery_day()
-        if target == "monday":
-            delivery_day_fa = "دوشنبه"
-        elif target == "thursday":
-            delivery_day_fa = "پنج‌شنبه"
-        else:
-            delivery_day_fa = None
-
         user_state[uid] = {
             "step": "qty",
             "food_key": key,
             "food_name": f["name"],
-            "price": f["price"],
-            "delivery_day": delivery_day_fa
+            "price": f["price"]
         }
 
         q.edit_message_text(
@@ -374,10 +372,9 @@ def callbacks(update: Update, context: CallbackContext):
             st["qty"],
             st["total"],
             st.get("cutlery_qty", 0),
-            st["payment_method"],
-            st["delivery_day"],
-            st["delivery_slot"]
+            st["payment_method"]
         )
+
         orders_runtime[order_no] = st
         orders_runtime[order_no]["user_id"] = uid
 
@@ -441,10 +438,6 @@ def callbacks(update: Update, context: CallbackContext):
     if q.data.startswith("admin_"):
         _, action, order_no = q.data.split("_")
         order = orders_runtime.get(order_no)
-
-        if not order:
-            q.answer("اطلاعات سفارش در حافظه نیست", show_alert=True)
-            return
         user_id = order["user_id"]
 
         if action == "ok":
@@ -628,12 +621,10 @@ def handle_text(update: Update, context: CallbackContext):
         qty = int(text)
         # چک ظرفیت روزانه غذا
         cur.execute("""
-            SELECT COALESCE(SUM(qty), 0) FROM orders
-            WHERE food_key = ?
-              AND delivery_day = ?
-        """, (st["food_key"], st["delivery_day"]))
-
-        sold_today = cur.fetchone()[0]
+            SELECT SUM(qty) FROM orders
+            WHERE food_key = ? AND date(created_at) = date('now', 'localtime')
+        """, (st["food_key"],))
+        sold_today = cur.fetchone()[0] or 0
 
         remaining = MAX_DAILY - sold_today
 # جلوگیری از فروش بیشتر از ظرفیت روزانه
@@ -741,13 +732,7 @@ def handle_text(update: Update, context: CallbackContext):
 
     # PHONE
     if st["step"] == "phone":
-        phone = normalize_digits(text)
-
-        if not phone.isdigit() or len(phone) < 8:
-            update.message.reply_text("❗ لطفاً یک شماره تماس معتبر وارد کنید")
-            return
-
-        st["phone"] = phone
+        st["phone"] = text
 
         if st["delivery_method"] == "delivery":
             st["step"] = "address"
@@ -809,7 +794,7 @@ def home():
 def main():
     global dp
 
-    dp = Dispatcher(bot, None, workers=2)
+    dp = Dispatcher(bot, None, workers=0)
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(callbacks))
