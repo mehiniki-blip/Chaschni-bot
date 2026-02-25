@@ -122,18 +122,6 @@ def is_working_time():
 
     # بقیه روزها سفارش‌گیری بسته است
     return False
-def get_target_delivery_day():
-    today = datetime.now(TIMEZONE).weekday()
-
-    # سه‌شنبه / چهارشنبه → پنجشنبه
-    if today in [1, 2]:
-        return "پنج‌شنبه"
-
-    # جمعه / شنبه / یکشنبه → دوشنبه
-    if today in [4, 5, 6]:
-        return "دوشنبه"
-
-    return None  # روز تحویل (که سفارش بسته است)
 
 def get_target_delivery_day():
     day = datetime.now(TIMEZONE).weekday()
