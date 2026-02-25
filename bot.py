@@ -348,6 +348,53 @@ def callbacks(update: Update, context: CallbackContext):
     q.answer()
 
     st = user_state.get(uid)
+    if q.data == "add_more":
+        st = user_state.get(uid)
+
+    # ریست فقط مراحل موقتی غذا
+        st.pop("qty", None)
+        st.pop("cutlery_qty", None)
+        st.pop("food_key", None)
+        st.pop("food_name", None)
+        st.pop("price", None)
+        st.pop("food_total", None)
+
+        st["step"] = "choose_food"
+
+        q.edit_message_text("🍽 لطفاً غذای بعدی را انتخاب کنید:")
+        context.bot.send_message(
+            chat_id=uid,
+            text="منو:",
+            reply_markup=food_keyboard()
+        )
+        return
+
+    if q.data == "finish_cart":
+        st = user_state.get(uid)
+
+        st["step"] = "postcode"
+
+        summary = "🧾 خلاصه سفارش شما:\n\n"
+        total_sum = 0
+
+        for item in st.get("cart", []):
+            summary += (
+                f"🍽 {item['food_name']} × {item['qty']}\n"
+                f"🥄 قاشق/چنگال: {item['cutlery_qty']}\n"
+                f"💶 {item['total']}€\n\n"
+            )
+            total_sum += item["total"]
+
+        st["cart_total"] = total_sum
+
+        summary += f"💰 مبلغ کل سفارش: €{total_sum}"
+
+        q.edit_message_text(summary)
+        context.bot.send_message(
+            chat_id=uid,
+            text="📮 لطفاً کد پستی را وارد کنید:"
+        )
+        return
 
     # ---------------- FOOD SELECTION ----------------
     if q.data.startswith("food_"):
@@ -361,9 +408,12 @@ def callbacks(update: Update, context: CallbackContext):
         f = foods[key]
         user_state[uid] = {
             "step": "qty",
-            "food_key": key,
-            "food_name": f["name"],
-            "price": f["price"]
+            "cart": [],
+            "current_food": {
+                "food_key": key,
+                "food_name": f["name"],
+                "price": f["price"]
+            }
         }
 
         q.edit_message_text(
@@ -384,8 +434,8 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- CUTLERY NO ----------------
     if q.data == "cutlery_no":
         st["cutlery_qty"] = 0
-        st["step"] = "postcode"
-        q.edit_message_text("📮 لطفاً کد پستی را وارد کنید:")
+        st["step"] = "finalize_item"
+        q.edit_message_text("✅ ثبت شد")
         return
 
     # ---------------- PICKUP YES ----------------
@@ -792,12 +842,40 @@ def handle_text(update: Update, context: CallbackContext):
         if c < 0 or c > st["qty"]:
             update.message.reply_text("❗ تعداد قاشق/چنگال نمی‌تواند بیشتر از تعداد غذا باشد.")
             return
+            
+        st["cutlery_qty"] = c
+        st["step"] = "finalize_item"
+        update.message.reply_text("✅ ثبت شد")
+        return
 
         st["cutlery_qty"] = c
         st["step"] = "postcode"
         update.message.reply_text("📮 لطفاً کد پستی را وارد کنید:")
         return
+        
+    if st["step"] == "finalize_item":
+        item = {
+            "food_key": st["current_food"]["food_key"],
+            "food_name": st["current_food"]["food_name"],
+            "price": st["current_food"]["price"],
+            "qty": st["qty"],
+            "cutlery_qty": st.get("cutlery_qty", 0),
+            "total": st["qty"] * st["current_food"]["price"]
+        }
 
+        st["cart"].append(item)
+
+        st["step"] = "ask_more"
+        update.message.reply_text(
+            "🛒 آیا سفارش دیگری هم دارید؟",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("➕ بله، غذای دیگر", callback_data="add_more"),
+                    InlineKeyboardButton("✅ خیر، ادامه بده", callback_data="finish_cart")
+                ]
+            ])
+        )
+        return
     # POSTCODE
     if st["step"] == "postcode":
         pc = normalize_digits(text)
