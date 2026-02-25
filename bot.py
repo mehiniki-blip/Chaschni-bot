@@ -669,6 +669,11 @@ def handle_text(update: Update, context: CallbackContext):
     # POSTCODE
     if st["step"] == "postcode":
         pc = normalize_digits(text)
+
+        if not pc.isdigit() or len(pc) != 5:
+            update.message.reply_text("📮 کد پستی باید دقیقاً ۵ رقم و فقط عدد باشد.")
+            return
+
         st["postcode"] = pc
 
         if pc == "30163":
@@ -727,7 +732,17 @@ def handle_text(update: Update, context: CallbackContext):
 
     # PHONE
     if st["step"] == "phone":
-        st["phone"] = text
+        phone = normalize_digits(text)
+
+        if not phone.isdigit() or len(phone) < 8 or len(phone) > 15:
+            update.message.reply_text(
+            "📞 لطفاً شماره تماس معتبر وارد کنید.\n"
+            "✔️ فقط عدد\n"
+            "✔️ حداقل ۸ رقم"
+            )
+            return
+
+        st["phone"] = phone
 
         if st["delivery_method"] == "delivery":
             st["step"] = "address"
