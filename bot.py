@@ -470,13 +470,23 @@ def callbacks(update: Update, context: CallbackContext):
         if action == "ok":
             close_order(order_no, "approved")
 
-            # unified message
+            delivery_text = (
+                "🚗 روش دریافت: ارسال"
+                if order["delivery_method"] == "delivery"
+                else f"🎒 روش دریافت: تحویل حضوری\n📍 آدرس: {PICKUP_ADDRESS_FULL}"
+            )
+
             msg = (
-                "🍽 سفارش شما تأیید شد ممنون از اعتماد شما!\n"
-                "🚗 سفارش شما در روز تحویل ارسال می‌شود." if order["delivery_method"] == "delivery"
-                else
-                "🍽 سفارش شما تأیید شد ممنون از اعتماد شما!\n"
-                f"📍 لطفاً برای تحویل حضوری در روز معین شده به این آدرس مراجعه کنید:\n{PICKUP_ADDRESS_FULL}"
+                "✅ سفارش شما تأیید شد 🙏\n\n"
+                "🧾 خلاصه سفارش:\n"
+                f"🍽 {order['food_name']} × {order['qty']}\n"
+                f"📅 روز تحویل: {order['delivery_day']}\n"
+                f"⏰ بازه تحویل: {order['delivery_slot']}\n"
+                f"{delivery_text}\n"
+                f"🏠 آدرس: {order['address']}\n"
+                f"📞 تماس: {order['phone']}\n\n"
+                f"💶 مبلغ کل: €{order['total']}\n\n"
+                "🙏 ممنون از اعتماد شما"
             )
 
             context.bot.send_message(user_id, msg)
