@@ -480,7 +480,7 @@ def handle_text(update: Update, context: CallbackContext):
         user_last_msgs[uid] = now
 
     # اگر کاربر بیشتر از حد مجاز پیام بده
-     if uid != ADMIN_CHAT_ID and user_msg_count[uid] > SPAM_LIMIT:
+    if uid != ADMIN_CHAT_ID and user_msg_count[uid] > SPAM_LIMIT:
         update.message.reply_text("⚠️ لطفاً پیام‌ها را پشت‌سرهم ارسال نکنید 🙏")
         return
     
