@@ -79,7 +79,9 @@ CREATE TABLE IF NOT EXISTS orders (
     status TEXT,
     payment_method TEXT,
     created_at TEXT,
-    payment_checked_at TEXT
+    payment_checked_at TEXT,
+    delivery_day TEXT,
+    delivery_slot TEXT
 )
 """)
 conn.commit()
