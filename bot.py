@@ -501,49 +501,49 @@ def callbacks(update: Update, context: CallbackContext):
         orders_runtime.pop(order_no, None)
         return
 
-# ---------------- REMINDER ----------------
-if q.data.startswith("remind_"):
-    _, target = q.data.split("_")
+    # ---------------- REMINDER ----------------
+    if q.data.startswith("remind_"):
+        _, target = q.data.split("_")
 
-    cur.execute("""
-        SELECT user_id, food_name, qty, delivery_slot, delivery_method
-        FROM orders
-        WHERE delivery_day = ?
-          AND status = 'approved'
-    """, (
-        "دوشنبه" if target == "monday" else "پنج‌شنبه",
-    ))
+        cur.execute("""
+            SELECT user_id, food_name, qty, delivery_slot, delivery_method
+            FROM orders
+            WHERE delivery_day = ?
+              AND status = 'approved'
+        """, (
+            "دوشنبه" if target == "monday" else "پنج‌شنبه",
+        ))
 
-    rows = cur.fetchall()
+        rows = cur.fetchall()
 
-    if not rows:
-        q.edit_message_text("هیچ سفارش تأییدشده‌ای برای یادآوری وجود ندارد.")
+        if not rows:
+            q.edit_message_text("هیچ سفارش تأییدشده‌ای برای یادآوری وجود ندارد.")
+            return
+
+        sent = 0
+        for r in rows:
+            user_id, food, qty, slot, method = r
+
+            msg = (
+                "⏰ یادآوری تحویل غذا\n\n"
+                f"🍽 {food} × {qty}\n"
+                f"⏱ بازه تحویل: {slot}\n\n"
+                "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
+            )
+
+            if method == "pickup":
+                msg += f"\n📍 آدرس تحویل حضوری:\n{PICKUP_ADDRESS_FULL}"
+
+            context.bot.send_message(user_id, msg)
+            sent += 1
+
+        q.edit_message_text(f"✅ یادآوری برای {sent} سفارش ارسال شد")
         return
 
-    sent = 0
-    for r in rows:
-        user_id, food, qty, slot, method = r
 
-        msg = (
-            "⏰ یادآوری تحویل غذا\n\n"
-            f"🍽 {food} × {qty}\n"
-            f"⏱ بازه تحویل: {slot}\n\n"
-            "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
-        )
-
-        if method == "pickup":
-            msg += f"\n📍 آدرس تحویل حضوری:\n{PICKUP_ADDRESS_FULL}"
-
-        context.bot.send_message(user_id, msg)
-        sent += 1
-
-    q.edit_message_text(f"✅ یادآوری برای {sent} سفارش ارسال شد")
-    return
-
-
-if q.data == "remind_cancel":
-    q.edit_message_text("❌ ارسال یادآوری لغو شد")
-    return
+    if q.data == "remind_cancel":
+        q.edit_message_text("❌ ارسال یادآوری لغو شد")
+        return
 
 # ---------- TEXT HANDLER ----------
 def handle_text(update: Update, context: CallbackContext):
