@@ -306,9 +306,7 @@ def callbacks(update: Update, context: CallbackContext):
     q.answer()
 
     st = user_state.get(uid)
-    if not st and not q.data.startswith(("admin_", "food_")):
-        q.answer("⏳ این سفارش منقضی شده، لطفاً دوباره شروع کنید", show_alert=True)
-        return
+
 
     # ---------------- FOOD SELECTION ----------------
     if q.data.startswith("food_"):
@@ -814,7 +812,7 @@ def home():
 def main():
     global dp
 
-    dp = Dispatcher(bot, None, workers=1)
+    dp = Dispatcher(bot, None, workers=0)
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(callbacks))
