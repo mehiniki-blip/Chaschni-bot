@@ -99,6 +99,15 @@ def get_remaining_stock(food_key):
     sold = cur.fetchone()[0] or 0
     remaining = MAX_DAILY - sold
     return max(remaining, 0)
+
+def get_slot_count(delivery_day, slot):
+    cur.execute("""
+        SELECT COUNT(*) FROM orders
+        WHERE delivery_day = ?
+          AND delivery_slot = ?
+          AND status != 'canceled'
+    """, (delivery_day, slot))
+    return cur.fetchone()[0] or 0
     
 # ---------- ANTI-SPAM ----------
 user_last_msgs = {}     # آخرین زمان پیام کاربر
@@ -262,7 +271,7 @@ def pickup_keyboard():
     ])
 
 
-def delivery_slot_keyboard():
+def delivery_slot_keyboard(delivery_day):
     buttons = []
 
     hour = START_HOUR
@@ -277,12 +286,22 @@ def delivery_slot_keyboard():
             minute = 0
 
         end = f"{hour:02d}:{minute:02d}"
+        slot = f"{start} – {end}"
+
+        # ⛔ محدودیت ظرفیت (۳ سفارش)
+        if get_slot_count(delivery_day, slot) >= 3:
+            continue
 
         buttons.append([
             InlineKeyboardButton(
-                f"⏰ {start} – {end}",
+                f"⏰ {slot}",
                 callback_data=f"slot_{start}_{end}"
             )
+        ])
+
+    if not buttons:
+        buttons.append([
+            InlineKeyboardButton("⛔ همه بازه‌ها پر شده‌اند", callback_data="noop")
         ])
 
     return InlineKeyboardMarkup(buttons)
@@ -873,7 +892,7 @@ def handle_text(update: Update, context: CallbackContext):
 
             update.message.reply_text(
                 f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
-                reply_markup=delivery_slot_keyboard()
+                reply_markup=delivery_slot_keyboard(st["delivery_day"])
             )
             return
     # ADDRESS
@@ -893,7 +912,7 @@ def handle_text(update: Update, context: CallbackContext):
 
         update.message.reply_text(
             f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
-            reply_markup=delivery_slot_keyboard()
+            reply_markup=delivery_slot_keyboard(st["delivery_day"])
         )
         return
 # ----------- WEBHOOK MODE -----------
