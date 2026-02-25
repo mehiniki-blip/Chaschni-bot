@@ -823,7 +823,6 @@ def main():
     WEBHOOK_URL = f"https://chaschni-bot.onrender.com/{BOT_TOKEN}"
     bot.delete_webhook(drop_pending_updates=True)
     bot.set_webhook(WEBHOOK_URL)
-    bot.set_webhook(WEBHOOK_URL)
 
     port = int(os.environ.get("PORT", 8443))
     app.run(host="0.0.0.0", port=port)
