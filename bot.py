@@ -122,19 +122,7 @@ def is_working_time():
 
     # بقیه روزها سفارش‌گیری بسته است
     return False
-def get_target_delivery_day():
-    today = datetime.now(TIMEZONE).weekday()
-
-    # سه‌شنبه / چهارشنبه → پنجشنبه
-    if today in [1, 2]:
-        return "پنج‌شنبه"
-
-    # جمعه / شنبه / یکشنبه → دوشنبه
-    if today in [4, 5, 6]:
-        return "دوشنبه"
-
-    return None  # روز تحویل (که سفارش بسته است)
-
+    
 def get_target_delivery_day():
     day = datetime.now(TIMEZONE).weekday()
 
@@ -157,8 +145,8 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
 
     cur.execute("""
         INSERT INTO orders
-        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at, delivery_day, delivery_slot)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
     """, (
         order_no,
         user_id,
@@ -168,6 +156,8 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
         cutlery_qty,
         total,
         payment_method,
+        st["delivery_day"],
+        st["delivery_slot"],
         datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
     ))
     conn.commit()
@@ -240,7 +230,7 @@ def pickup_keyboard():
 def delivery_slot_keyboard():
     buttons = []
 
-    hour = 12
+    hour = START_HOUR
     minute = 0
 
     while hour < END_HOUR:
@@ -493,6 +483,7 @@ def handle_text(update: Update, context: CallbackContext):
     if user_msg_count[uid] > SPAM_LIMIT:
         update.message.reply_text("⚠️ لطفاً پیام‌ها را پشت‌سرهم ارسال نکنید 🙏")
         return
+        if uid != ADMIN_CHAT_ID and user_msg_count[uid] > SPAM_LIMIT:
 
     # اگر پیام اضطراری فعال است، اجازه شروع سفارش نده
     if EMERGENCY_MESSAGE and text == "🍽 شروع سفارش":
