@@ -506,7 +506,7 @@ def callbacks(update: Update, context: CallbackContext):
         _, target = q.data.split("_")
 
         cur.execute("""
-            SELECT user_id, food_name, qty, delivery_slot, delivery_method
+            SELECT user_id, food_name, qty, delivery_slot
             FROM orders
             WHERE delivery_day = ?
               AND status = 'approved'
@@ -522,7 +522,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         sent = 0
         for r in rows:
-            user_id, food, qty, slot, method = r
+            user_id, food, qty, slot = r
 
             msg = (
                 "⏰ یادآوری تحویل غذا\n\n"
