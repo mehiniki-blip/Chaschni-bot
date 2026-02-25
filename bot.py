@@ -814,13 +814,14 @@ def home():
 def main():
     global dp
 
-    dp = Dispatcher(bot, None, workers=0)
+    dp = Dispatcher(bot, None, workers=1)
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(callbacks))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
     WEBHOOK_URL = f"https://chaschni-bot.onrender.com/{BOT_TOKEN}"
+    bot.delete_webhook(drop_pending_updates=True)
     bot.set_webhook(WEBHOOK_URL)
 
     port = int(os.environ.get("PORT", 8443))
