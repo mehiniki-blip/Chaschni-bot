@@ -512,7 +512,7 @@ def callbacks(update: Update, context: CallbackContext):
                 qty,
                 cutlery_qty,
                 delivery_day,
-                delivery_slot,
+                delivery_slot
             FROM orders
             WHERE delivery_day = ?
               AND status = 'approved'
@@ -537,9 +537,6 @@ def callbacks(update: Update, context: CallbackContext):
                 "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
             )
 
-        # فقط برای تحویل حضوری
-            if address == "تحویل حضوری":
-                msg += f"\n\n📍 آدرس تحویل حضوری:\n{PICKUP_ADDRESS_FULL}"
 
             context.bot.send_message(user_id, msg)
             sent += 1
