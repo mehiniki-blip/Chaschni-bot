@@ -506,7 +506,14 @@ def callbacks(update: Update, context: CallbackContext):
         _, target = q.data.split("_")
 
         cur.execute("""
-            SELECT user_id, food_name, qty, delivery_slot
+            SELECT 
+                user_id,
+                food_name,
+                qty,
+                cutlery_qty,
+                delivery_day,
+                delivery_slot,
+                address
             FROM orders
             WHERE delivery_day = ?
               AND status = 'approved'
@@ -521,23 +528,25 @@ def callbacks(update: Update, context: CallbackContext):
             return
 
         sent = 0
-        for r in rows:
-            user_id, food, qty, slot = r
-
+        for user_id, food, qty, cutlery, day, slot, address in rows:
             msg = (
                 "⏰ یادآوری تحویل غذا\n\n"
-                f"🍽 {food} × {qty}\n"
+                f"🍽 غذا: {food} × {qty}\n"
+                f"🥄 قاشق/چنگال: {cutlery}\n"
+                f"📅 روز تحویل: {day}\n"
                 f"⏱ بازه تحویل: {slot}\n\n"
                 "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
             )
-            msg += f"\n📍 آدرس تحویل حضوری:\n{PICKUP_ADDRESS_FULL}"
+
+        # فقط برای تحویل حضوری
+            if address == "تحویل حضوری":
+                msg += f"\n\n📍 آدرس تحویل حضوری:\n{PICKUP_ADDRESS_FULL}"
 
             context.bot.send_message(user_id, msg)
             sent += 1
 
         q.edit_message_text(f"✅ یادآوری برای {sent} سفارش ارسال شد")
         return
-
 
     if q.data == "remind_cancel":
         q.edit_message_text("❌ ارسال یادآوری لغو شد")
