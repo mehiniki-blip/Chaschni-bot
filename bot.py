@@ -89,6 +89,17 @@ conn.commit()
 # ---------- UTILITY ----------
 user_state = {}
 orders_runtime = {}
+def get_remaining_stock(food_key):
+    cur.execute("""
+        SELECT SUM(qty) FROM orders
+        WHERE food_key = ?
+          AND date(created_at) = date('now', 'localtime')
+          AND status != 'canceled'
+    """, (food_key,))
+    sold = cur.fetchone()[0] or 0
+    remaining = MAX_DAILY - sold
+    return max(remaining, 0)
+    
 # ---------- ANTI-SPAM ----------
 user_last_msgs = {}     # آخرین زمان پیام کاربر
 user_msg_count = {}     # تعداد پیام‌های اخیر
@@ -208,8 +219,30 @@ def persistent_menu():
 def food_keyboard():
     foods = get_foods_for_target_day()
     buttons = []
+
     for k, f in foods.items():
-        buttons.append([InlineKeyboardButton(f"{f['name']} — {f['price']}€", callback_data=f"food_{k}")])
+        remaining = get_remaining_stock(k)
+
+        # اگر موجودی تموم شده → اصلاً نمایش نده
+        if remaining <= 0:
+            continue
+
+        label = f"{f['name']} — {f['price']}€"
+
+        # اگر کمتر از 5 تا مونده → هشدار بده
+        if remaining <= 5:
+            label += f"\n⏳ فقط {remaining} عدد باقی مانده"
+
+        buttons.append([
+            InlineKeyboardButton(label, callback_data=f"food_{k}")
+        ])
+
+    # اگر هیچ غذایی موجود نبود
+    if not buttons:
+        buttons.append([
+            InlineKeyboardButton("❌ موجودی امروز تمام شد", callback_data="noop")
+        ])
+
     return InlineKeyboardMarkup(buttons)
 
 def admin_keyboard(order_no):
