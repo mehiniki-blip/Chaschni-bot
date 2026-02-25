@@ -24,7 +24,7 @@ from telegram.ext import (
 
 # ================= CONFIG =================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", "0"))
+ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID"))
 PAYPAL_BASE_LINK = "https://www.paypal.com/paypalme/Chaschni?country.x=DE&locale.x=de_DE"
 CONTACT_USERNAME = "Chaschni"
 CUTLERY_PRICE = 0.30
@@ -37,7 +37,7 @@ TEST_MODE = False            # حالت تست
 
 WORK_DAYS = {0, 3}            # دوشنبه=0 ، پنجشنبه=3
 START_HOUR = 12
-END_HOUR = 17
+END_HOUR = 18
 EMERGENCY_MESSAGE = None
 
 # ---------- DELIVERY ----------
@@ -148,7 +148,7 @@ def get_target_delivery_day():
 
     return None  # دوشنبه یا پنج‌شنبه (روز تحویل → سفارش بسته)
     
-def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot):
+def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method):
     from random import randint
 
     today = datetime.now(TIMEZONE).strftime("%Y%m%d")
@@ -157,9 +157,8 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
 
     cur.execute("""
         INSERT INTO orders
-        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total,
-         status, payment_method, created_at, delivery_day, delivery_slot)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
     """, (
         order_no,
         user_id,
@@ -169,10 +168,8 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
         cutlery_qty,
         total,
         payment_method,
-        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-        delivery_day,
-        delivery_slot
-        ))
+        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
+    ))
     conn.commit()
     return order_no
 
@@ -246,7 +243,7 @@ def delivery_slot_keyboard():
     hour = 12
     minute = 0
 
-    while hour < END_HOUR:
+    while hour < 17:
         start = f"{hour:02d}:{minute:02d}"
 
         minute += 30
@@ -306,7 +303,6 @@ def callbacks(update: Update, context: CallbackContext):
     q.answer()
 
     st = user_state.get(uid)
-
 
     # ---------------- FOOD SELECTION ----------------
     if q.data.startswith("food_"):
@@ -376,9 +372,7 @@ def callbacks(update: Update, context: CallbackContext):
             st["qty"],
             st["total"],
             st.get("cutlery_qty", 0),
-            st["payment_method"],
-            st.get("delivery_day"),
-            st.get("delivery_slot")
+            st["payment_method"]
         )
 
         orders_runtime[order_no] = st
@@ -444,9 +438,6 @@ def callbacks(update: Update, context: CallbackContext):
     if q.data.startswith("admin_"):
         _, action, order_no = q.data.split("_")
         order = orders_runtime.get(order_no)
-        if not order:
-            q.answer("⚠️ این سفارش منقضی شده است", show_alert=True)
-            return
         user_id = order["user_id"]
 
         if action == "ok":
@@ -629,21 +620,12 @@ def handle_text(update: Update, context: CallbackContext):
 
         qty = int(text)
         # چک ظرفیت روزانه غذا
-        target = get_target_delivery_day()
-
-        if target == "monday":
-            delivery_day = "دوشنبه"
-        elif target == "thursday":
-            delivery_day = "پنج‌شنبه"
-        else:
-            delivery_day = None
-
         cur.execute("""
             SELECT SUM(qty) FROM orders
-            WHERE food_key = ? AND delivery_day = ?
-        """, (st["food_key"], delivery_day))
-
+            WHERE food_key = ? AND date(created_at) = date('now', 'localtime')
+        """, (st["food_key"],))
         sold_today = cur.fetchone()[0] or 0
+
         remaining = MAX_DAILY - sold_today
 # جلوگیری از فروش بیشتر از ظرفیت روزانه
         if qty > remaining:
@@ -819,7 +801,6 @@ def main():
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
     WEBHOOK_URL = f"https://chaschni-bot.onrender.com/{BOT_TOKEN}"
-    bot.delete_webhook(drop_pending_updates=True)
     bot.set_webhook(WEBHOOK_URL)
 
     port = int(os.environ.get("PORT", 8443))
