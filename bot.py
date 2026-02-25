@@ -530,9 +530,7 @@ def callbacks(update: Update, context: CallbackContext):
                 f"⏱ بازه تحویل: {slot}\n\n"
                 "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
             )
-
-            if method == "pickup":
-                msg += f"\n📍 آدرس تحویل حضوری:\n{PICKUP_ADDRESS_FULL}"
+            msg += f"\n📍 آدرس تحویل حضوری:\n{PICKUP_ADDRESS_FULL}"
 
             context.bot.send_message(user_id, msg)
             sent += 1
