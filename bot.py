@@ -306,7 +306,7 @@ def callbacks(update: Update, context: CallbackContext):
     q.answer()
 
     st = user_state.get(uid)
-    if not st and not q.data.startswith("admin_"):
+    if not st and not q.data.startswith(("admin_", "food_")):
         q.answer("⏳ این سفارش منقضی شده، لطفاً دوباره شروع کنید", show_alert=True)
         return
 
