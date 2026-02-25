@@ -513,7 +513,6 @@ def callbacks(update: Update, context: CallbackContext):
                 cutlery_qty,
                 delivery_day,
                 delivery_slot,
-                address
             FROM orders
             WHERE delivery_day = ?
               AND status = 'approved'
@@ -528,7 +527,7 @@ def callbacks(update: Update, context: CallbackContext):
             return
 
         sent = 0
-        for user_id, food, qty, cutlery, day, slot, address in rows:
+        for user_id, food, qty, cutlery, day, slot in rows:
             msg = (
                 "⏰ یادآوری تحویل غذا\n\n"
                 f"🍽 غذا: {food} × {qty}\n"
