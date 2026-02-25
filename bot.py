@@ -136,7 +136,7 @@ def get_target_delivery_day():
 
     return None  # دوشنبه یا پنج‌شنبه (روز تحویل → سفارش بسته)
     
-def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method):
+def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot):
     from random import randint
 
     today = datetime.now(TIMEZONE).strftime("%Y%m%d")
@@ -156,9 +156,9 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
         cutlery_qty,
         total,
         payment_method,
-        st["delivery_day"],
-        st["delivery_slot"],
-        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
+        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+        delivery_day,
+        delivery_slot
     ))
     conn.commit()
     return order_no
@@ -362,7 +362,9 @@ def callbacks(update: Update, context: CallbackContext):
             st["qty"],
             st["total"],
             st.get("cutlery_qty", 0),
-            st["payment_method"]
+            st["payment_method"],
+            st["delivery_day"],
+            st["delivery_slot"]
         )
 
         orders_runtime[order_no] = st
