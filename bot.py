@@ -37,7 +37,7 @@ TEST_MODE = False            # حالت تست
 
 WORK_DAYS = {0, 3}            # دوشنبه=0 ، پنجشنبه=3
 START_HOUR = 12
-END_HOUR = 18
+END_HOUR = 17
 EMERGENCY_MESSAGE = None
 
 # ---------- DELIVERY ----------
@@ -243,7 +243,7 @@ def delivery_slot_keyboard():
     hour = 12
     minute = 0
 
-    while hour < 17:
+    while hour < END_HOUR:
         start = f"{hour:02d}:{minute:02d}"
 
         minute += 30
