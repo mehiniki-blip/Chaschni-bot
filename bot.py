@@ -378,7 +378,7 @@ def callbacks(update: Update, context: CallbackContext):
             st["qty"],
             st["total"],
             st.get("cutlery_qty", 0),
-            st["payment_method"]
+            st["payment_method"],
             st.get("delivery_day"),
             st.get("delivery_slot")
         )
