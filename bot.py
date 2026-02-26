@@ -325,12 +325,12 @@ def delivery_slot_keyboard(delivery_day):
 # ---------- COMMANDS ----------
 def start(update: Update, context: CallbackContext):
         if not is_user_member(context.bot, update.effective_user.id):
-        update.message.reply_text(
-            "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
-            "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
-            reply_markup=join_channel_keyboard()
-        )
-        return
+            update.message.reply_text(
+                "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
+                "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
+                reply_markup=join_channel_keyboard()
+            )
+            return
     update.message.reply_text(
         "👋 خوش آمدید به ربات تهیه غذا در هانوفر !\n\n"
         "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
