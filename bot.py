@@ -371,8 +371,8 @@ def start(update: Update, context: CallbackContext):
 
     send_welcome(
         context.bot,
-        update.effective_chat.id,
-        is_admin=(uid == ADMIN_CHAT_ID)
+        uid,
+        uid == ADMIN_CHAT_ID
     )
 
     # ✅ پیام خوش‌آمد (برای اعضا)
@@ -451,23 +451,21 @@ def callbacks(update: Update, context: CallbackContext):
         if is_user_member(context.bot, uid):
             q.edit_message_text(
                 "✅ عضویت شما تأیید شد 🌱\n\n"
-                "اکنون می‌توانید از ربات استفاده کنید 👇"
+                "در حال ورود به ربات..."
             )
 
             send_welcome(
                 context.bot,
                 uid,
-                is_admin=(uid == ADMIN_CHAT_ID)
+                uid == ADMIN_CHAT_ID
             )
 
         else:
-            q.answer(
-                "❌ هنوز عضو کانال نیستید",
-                show_alert=True
-            )
-            q.edit_message_text(
-                "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
-                "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
+            q.answer(show_alert=True)
+            context.bot.send_message(
+                uid,
+                "❌ هنوز عضو کانال نیستید.\n\n"
+                "📢 لطفاً ابتدا عضو کانال شوید و سپس روی «بررسی عضویت» بزنید 👇",
                 reply_markup=join_channel_keyboard()
             )
         return
