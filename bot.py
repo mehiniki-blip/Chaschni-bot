@@ -611,6 +611,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         cur.execute("""
             SELECT 
+                order_no,
                 user_id,
                 food_name,
                 qty,
@@ -620,10 +621,10 @@ def callbacks(update: Update, context: CallbackContext):
             FROM orders
             WHERE delivery_day = ?
               AND status = 'approved'
+            ORDER BY order_no
         """, (
             "دوشنبه" if target == "monday" else "پنج‌شنبه",
         ))
-
         rows = cur.fetchall()
 
         if not rows:
@@ -631,16 +632,32 @@ def callbacks(update: Update, context: CallbackContext):
             return
 
         sent = 0
-        for user_id, food, qty, cutlery, day, slot in rows:
-            msg = (
-                "⏰ یادآوری تحویل غذا\n\n"
-                f"🍽 غذا: {food} × {qty}\n"
-                f"🥄 قاشق/چنگال: {cutlery}\n"
-                f"📅 روز تحویل: {day}\n"
-                f"⏱ بازه تحویل: {slot}\n\n"
-                "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
+        from itertools import groupby
+
+        sent = 0
+
+        for order_no, group in groupby(rows, key=lambda x: x[0]):
+            items = list(group)
+
+            user_id = items[0][1]
+            delivery_day = items[0][5]
+            delivery_slot = items[0][6]
+
+            foods_text = "\n".join(
+                f"🍽 {i[2]} × {i[3]} | 🥄 {i[4]}"
+                for i in items
             )
 
+            total_cutlery = sum(i[4] for i in items)
+
+            msg = (
+                "⏰ یادآوری تحویل غذا\n\n"
+                f"{foods_text}\n"
+                f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
+                f"📅 روز تحویل: {delivery_day}\n"
+                f"⏰ بازه تحویل: {delivery_slot}\n\n"
+                "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
+            )
 
             context.bot.send_message(user_id, msg)
             sent += 1
