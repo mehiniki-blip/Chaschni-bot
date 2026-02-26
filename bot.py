@@ -571,6 +571,9 @@ def callbacks(update: Update, context: CallbackContext):
                 else f"🎒 روش دریافت: تحویل حضوری\n📍 آدرس: {PICKUP_ADDRESS_FULL}"
             )
 
+            approved_total_cutlery = sum(
+                i.get("cutlery_qty", 0) for i in order["items"]
+            )
             foods_text = "\n".join(
                 f"🍽 {i['food_name']} × {i['qty']}"
                 for i in order["items"]
@@ -580,6 +583,7 @@ def callbacks(update: Update, context: CallbackContext):
                 "✅ سفارش شما تأیید شد 🙏\n\n"
                 "🧾 خلاصه سفارش:\n"
                 f"{foods_text}\n"
+                f"🥄 مجموع قاشق/چنگال: {approved_total_cutlery}\n"
                 f"📅 روز تحویل: {order['delivery_day']}\n"
                 f"⏰ بازه تحویل: {order['delivery_slot']}\n"
                 f"{delivery_text}\n"
