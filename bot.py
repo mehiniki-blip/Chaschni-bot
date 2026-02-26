@@ -473,6 +473,14 @@ def callbacks(update: Update, context: CallbackContext):
             for i in st["items"]
         )
 
+        admin_foods_text = "\n".join(
+            f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
+            for i in st["items"]
+        )
+
+        admin_total_cutlery = sum(
+            i.get("cutlery_qty", 0) for i in st["items"]
+        )
         context.bot.send_message(
             ADMIN_CHAT_ID,
             f"🆕 سفارش جدید\n\n"
@@ -482,9 +490,9 @@ def callbacks(update: Update, context: CallbackContext):
             f"📍 آدرس: {st['address']}\n"
             f"📮 کد پستی: {st['postcode']}\n"
             f"📅 روز تحویل: {st['delivery_day']}\n"
-            f"⏰ بازه تحویل: {st['delivery_slot']}\n"
-            f"{foods_text}\n"
-            f"🥄 قاشق/چنگال: {st.get('cutlery_qty', 0)}\n"
+            f"⏰ بازه تحویل: {st['delivery_slot']}\n\n"
+            f"{admin_foods_text}\n"
+            f"🥄 مجموع قاشق/چنگال: {admin_total_cutlery}\n"
             f"💶 مبلغ کل: €{st['total']}",
             reply_markup=admin_keyboard(order_no)
         )
