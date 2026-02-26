@@ -806,7 +806,8 @@ def handle_text(update: Update, context: CallbackContext):
         c = int(text)
 
     # محدودیت تعداد قاشق/چنگال
-        if c < 0 or c > st["qty"]:
+       total_qty = sum(i["qty"] for i in st["items"])
+       if c < 0 or c > total_qty:
             update.message.reply_text("❗ تعداد قاشق/چنگال نمی‌تواند بیشتر از تعداد غذا باشد.")
             return
 
