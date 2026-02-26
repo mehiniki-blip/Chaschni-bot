@@ -611,7 +611,6 @@ def callbacks(update: Update, context: CallbackContext):
 
         cur.execute("""
             SELECT 
-                order_no,
                 user_id,
                 food_name,
                 qty,
@@ -621,7 +620,6 @@ def callbacks(update: Update, context: CallbackContext):
             FROM orders
             WHERE delivery_day = ?
               AND status = 'approved'
-            ORDER BY order_no
         """, (
             "دوشنبه" if target == "monday" else "پنج‌شنبه",
         ))
@@ -631,49 +629,49 @@ def callbacks(update: Update, context: CallbackContext):
             q.edit_message_text("هیچ سفارش تأییدشده‌ای برای یادآوری وجود ندارد.")
             return
 
-    # ✅ جمع کردن سفارش‌ها به‌صورت امن
-        orders_map = {}
+    # ✅ گروه‌بندی بر اساس کاربر + بازه تحویل
+        reminders = {}
 
-        for row in rows:
-            order_no, user_id, food_name, qty, cutlery, day, slot = row
+        for user_id, food, qty, cutlery, day, slot in rows:
+            key = (user_id, day, slot)
 
-            if order_no not in orders_map:
-                orders_map[order_no] = {
+            if key not in reminders:
+                reminders[key] = {
                     "user_id": user_id,
                     "delivery_day": day,
                     "delivery_slot": slot,
                     "items": []
                 }
 
-            orders_map[order_no]["items"].append({
-                "food_name": food_name,
+            reminders[key]["items"].append({
+                "food": food,
                 "qty": qty,
                 "cutlery": cutlery
             })
 
         sent = 0
 
-        for order in orders_map.values():
+        for r in reminders.values():
             foods_text = "\n".join(
-                f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i['cutlery']}"
-                for i in order["items"]
+                f"🍽 {i['food']} × {i['qty']} | 🥄 {i['cutlery']}"
+                for i in r["items"]
             )
 
-            total_cutlery = sum(i["cutlery"] for i in order["items"])
+            total_cutlery = sum(i["cutlery"] for i in r["items"])
 
             msg = (
                 "⏰ یادآوری تحویل غذا\n\n"
                 f"{foods_text}\n"
                 f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
-                f"📅 روز تحویل: {order['delivery_day']}\n"
-                f"⏰ بازه تحویل: {order['delivery_slot']}\n\n"
+                f"📅 روز تحویل: {r['delivery_day']}\n"
+                f"⏰ بازه تحویل: {r['delivery_slot']}\n\n"
                 "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
             )
 
-            context.bot.send_message(order["user_id"], msg)
+            context.bot.send_message(r["user_id"], msg)
             sent += 1
 
-        q.edit_message_text(f"✅ یادآوری برای {sent} سفارش ارسال شد")
+        q.edit_message_text(f"✅ یادآوری برای {sent} مشتری ارسال شد")
         return
 
     if q.data == "remind_cancel":
