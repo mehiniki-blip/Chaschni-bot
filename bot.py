@@ -236,6 +236,8 @@ def join_channel_keyboard():
         [InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_join")]
     ])
 
+
+
 def persistent_menu():
     return ReplyKeyboardMarkup(
         [["🍽 شروع سفارش"], ["❌ لغو سفارش", "📞 تماس با ما"]],
@@ -323,14 +325,55 @@ def delivery_slot_keyboard(delivery_day):
 
     return InlineKeyboardMarkup(buttons)
 # ---------- COMMANDS ----------
+def send_welcome(bot, chat_id, is_admin=False):
+    bot.send_message(
+        chat_id,
+        "👋 خوش آمدید به ربات تهیه غذا در هانوفر !\n\n"
+        "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
+        "🚚 تحویل غذا فقط در روزهای:\n"
+        "• دوشنبه\n"
+        "• پنج‌شنبه\n\n"
+        "🗓 ثبت سفارش:\n"
+        "• سه‌شنبه و چهارشنبه → برای تحویل پنج‌شنبه\n"
+        "• جمعه، شنبه و یکشنبه → برای تحویل دوشنبه\n\n"
+        "🚗 محدوده ارسال: 30163 + برخی خیابان‌های 30165\n\n"
+        "🙏 لطفاً سفارش خود را از قبل ثبت فرمایید.\n"
+        "برای شروع، از دکمه‌های زیر استفاده کنید:",
+        reply_markup=persistent_menu()
+    )
+
+    if is_admin:
+        status = "🔵 تست فعال است" if TEST_MODE else "⚪ حالت واقعی فعال است"
+        bot.send_message(
+            chat_id,
+            f"⚙️ پنل مدیریت\n{status}",
+            reply_markup=ReplyKeyboardMarkup(
+                [
+                    ["📊 ریپورت"],
+                    ["📣 ارسال یادآوری تحویل"],
+                    ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
+                    ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
+                ],
+                resize_keyboard=True
+            )
+        )
+
 def start(update: Update, context: CallbackContext):
-    if not is_user_member(context.bot, update.effective_user.id):
+    uid = update.effective_user.id
+
+    if not is_user_member(context.bot, uid):
         update.message.reply_text(
             "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
             "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
             reply_markup=join_channel_keyboard()
         )
         return
+
+    send_welcome(
+        context.bot,
+        update.effective_chat.id,
+        is_admin=(uid == ADMIN_CHAT_ID)
+    )
 
     # ✅ پیام خوش‌آمد (برای اعضا)
     update.message.reply_text(
@@ -411,14 +454,21 @@ def callbacks(update: Update, context: CallbackContext):
                 "اکنون می‌توانید از ربات استفاده کنید 👇"
             )
 
-        # اجرای کامل صفحه start
-            start(update, context)
+            send_welcome(
+                context.bot,
+                uid,
+                is_admin=(uid == ADMIN_CHAT_ID)
+            )
 
         else:
             q.answer(
-                "❌ هنوز عضو کانال نیستید\n\n"
-                "لطفاً ابتدا عضو کانال شوید و دوباره امتحان کنید 👇",
+                "❌ هنوز عضو کانال نیستید",
                 show_alert=True
+            )
+            q.edit_message_text(
+                "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
+                "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
+                reply_markup=join_channel_keyboard()
             )
         return
     # ---------------- CUTLERY YES ----------------
