@@ -631,35 +631,46 @@ def callbacks(update: Update, context: CallbackContext):
             q.edit_message_text("هیچ سفارش تأییدشده‌ای برای یادآوری وجود ندارد.")
             return
 
-        sent = 0
-        from itertools import groupby
+    # ✅ جمع کردن سفارش‌ها به‌صورت امن
+        orders_map = {}
+
+        for row in rows:
+            order_no, user_id, food_name, qty, cutlery, day, slot = row
+
+            if order_no not in orders_map:
+                orders_map[order_no] = {
+                    "user_id": user_id,
+                    "delivery_day": day,
+                    "delivery_slot": slot,
+                    "items": []
+                }
+
+            orders_map[order_no]["items"].append({
+                "food_name": food_name,
+                "qty": qty,
+                "cutlery": cutlery
+            })
 
         sent = 0
 
-        for order_no, group in groupby(rows, key=lambda x: x[0]):
-            items = list(group)
-
-            user_id = items[0][1]
-            delivery_day = items[0][5]
-            delivery_slot = items[0][6]
-
+        for order in orders_map.values():
             foods_text = "\n".join(
-                f"🍽 {i[2]} × {i[3]} | 🥄 {i[4]}"
-                for i in items
+                f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i['cutlery']}"
+                for i in order["items"]
             )
 
-            total_cutlery = sum(i[4] for i in items)
+            total_cutlery = sum(i["cutlery"] for i in order["items"])
 
             msg = (
                 "⏰ یادآوری تحویل غذا\n\n"
                 f"{foods_text}\n"
                 f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
-                f"📅 روز تحویل: {delivery_day}\n"
-                f"⏰ بازه تحویل: {delivery_slot}\n\n"
+                f"📅 روز تحویل: {order['delivery_day']}\n"
+                f"⏰ بازه تحویل: {order['delivery_slot']}\n\n"
                 "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
             )
 
-            context.bot.send_message(user_id, msg)
+            context.bot.send_message(order["user_id"], msg)
             sent += 1
 
         q.edit_message_text(f"✅ یادآوری برای {sent} سفارش ارسال شد")
