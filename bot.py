@@ -324,30 +324,34 @@ def delivery_slot_keyboard(delivery_day):
     return InlineKeyboardMarkup(buttons)
 # ---------- COMMANDS ----------
 def start(update: Update, context: CallbackContext):
-        if not is_user_member(context.bot, update.effective_user.id):
-            update.message.reply_text(
-                "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
-                "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
-                reply_markup=join_channel_keyboard()
-            )
-            return
-            update.message.reply_text(
-                "👋 خوش آمدید به ربات تهیه غذا در هانوفر !\n\n"
-                "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
-                "🚚 تحویل غذا فقط در روزهای:\n"
-                "• دوشنبه\n"
-                "• پنج‌شنبه\n\n"
-                "🗓 ثبت سفارش:\n"
-                "• سه‌شنبه و چهارشنبه → برای تحویل پنج‌شنبه\n"
-                "• جمعه، شنبه و یکشنبه → برای تحویل دوشنبه\n\n"
-                "🚗 محدوده ارسال: 30163 + برخی خیابان‌های 30165\n\n"
-                "🙏 لطفاً سفارش خود را از قبل ثبت فرمایید.\n"
-                "برای شروع، از دکمه‌های زیر استفاده کنید:",
-                reply_markup=persistent_menu()
-            )
-# دکمه‌های مخصوص ادمین
-    if update.effective_user.id == ADMIN_CHAT_ID:
 
+    # 🔒 قفل عضویت کانال
+    if not is_user_member(context.bot, update.effective_user.id):
+        update.message.reply_text(
+            "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
+            "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
+            reply_markup=join_channel_keyboard()
+        )
+        return
+
+    # ✅ پیام خوش‌آمد (برای اعضا)
+    update.message.reply_text(
+        "👋 خوش آمدید به ربات تهیه غذا در هانوفر !\n\n"
+        "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
+        "🚚 تحویل غذا فقط در روزهای:\n"
+        "• دوشنبه\n"
+        "• پنج‌شنبه\n\n"
+        "🗓 ثبت سفارش:\n"
+        "• سه‌شنبه و چهارشنبه → برای تحویل پنج‌شنبه\n"
+        "• جمعه، شنبه و یکشنبه → برای تحویل دوشنبه\n\n"
+        "🚗 محدوده ارسال: 30163 + برخی خیابان‌های 30165\n\n"
+        "🙏 لطفاً سفارش خود را از قبل ثبت فرمایید.\n"
+        "برای شروع، از دکمه‌های زیر استفاده کنید:",
+        reply_markup=persistent_menu()
+    )
+
+    # ⚙️ پنل ادمین
+    if update.effective_user.id == ADMIN_CHAT_ID:
         status = "🔵 تست فعال است" if TEST_MODE else "⚪ حالت واقعی فعال است"
 
         update.message.reply_text(
@@ -362,7 +366,6 @@ def start(update: Update, context: CallbackContext):
                 resize_keyboard=True
             )
         )
-
 
 
 # ---------- CALLBACK HANDLER ----------
