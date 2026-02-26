@@ -394,8 +394,15 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- CUTLERY NO ----------------
     if q.data == "cutlery_no":
         st["cutlery_qty"] = 0
-        st["step"] = "postcode"
-        q.edit_message_text("📮 لطفاً کد پستی را وارد کنید:")
+        st["step"] = "ask_more"
+
+        q.edit_message_text(
+            "🛒 آیا سفارش دیگری دارید؟",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("➕ سفارش دیگر", callback_data="more_order")],
+                [InlineKeyboardButton("✅ ادامه خرید", callback_data="continue_order")]
+            ])
+        )
         return
 
     # ---------------- PICKUP YES ----------------
@@ -505,6 +512,32 @@ def callbacks(update: Update, context: CallbackContext):
         )
         return
 
+    # ---------------- ADD MORE OR CONTINUE ORDER ----------------
+    if q.data == "more_order":
+        st = user_state.get(uid)
+        if not st:
+            q.answer()
+            return
+
+        st["step"] = "qty"
+        q.edit_message_text("🍽 لطفاً غذای بعدی را انتخاب کنید:")
+        context.bot.send_message(
+            uid,
+            "منوی غذا:",
+            reply_markup=food_keyboard()
+        )
+        return
+
+    if q.data == "continue_order":
+        st = user_state.get(uid)
+        if not st:
+            q.answer()
+            return
+
+        st["step"] = "postcode"
+        q.edit_message_text("📮 لطفاً کد پستی را وارد کنید:")
+        return
+    
     # ---------------- ADMIN APPROVAL ----------------
     if q.data.startswith("admin_"):
         _, action, order_no = q.data.split("_")
@@ -832,8 +865,15 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         st["cutlery_qty"] = c
-        st["step"] = "postcode"
-        update.message.reply_text("📮 لطفاً کد پستی را وارد کنید:")
+        st["step"] = "ask_more"
+
+        update.message.reply_text(
+            "🛒 آیا سفارش دیگری دارید؟",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("➕ سفارش دیگر", callback_data="more_order")],
+                [InlineKeyboardButton("✅ ادامه خرید", callback_data="continue_order")]
+            ])
+        )
         return
 
     # POSTCODE
