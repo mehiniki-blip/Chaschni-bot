@@ -146,6 +146,9 @@ def is_working_time():
     return False
     
 def get_target_delivery_day():
+    if TEST_MODE:
+        return "monday"
+
     day = datetime.now(TIMEZONE).weekday()
 
     # سه‌شنبه، چهارشنبه → پنج‌شنبه
