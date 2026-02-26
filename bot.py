@@ -436,7 +436,7 @@ def callbacks(update: Update, context: CallbackContext):
                 item["food_name"],
                 item["qty"],
                 st["total"],
-                st.get("cutlery_qty", 0),
+                item.get("cutlery_qty", 0),
                 st["payment_method"],
                 st["delivery_day"],
                 st["delivery_slot"]
