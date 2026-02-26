@@ -620,6 +620,7 @@ def callbacks(update: Update, context: CallbackContext):
             FROM orders
             WHERE delivery_day = ?
               AND status = 'approved'
+            ORDER BY user_id
         """, (
             "دوشنبه" if target == "monday" else "پنج‌شنبه",
         ))
@@ -629,21 +630,19 @@ def callbacks(update: Update, context: CallbackContext):
             q.edit_message_text("هیچ سفارش تأییدشده‌ای برای یادآوری وجود ندارد.")
             return
 
-    # ✅ گروه‌بندی بر اساس کاربر + بازه تحویل
-        reminders = {}
+        orders_map = {}
 
         for user_id, food, qty, cutlery, day, slot in rows:
             key = (user_id, day, slot)
 
-            if key not in reminders:
-                reminders[key] = {
-                    "user_id": user_id,
-                    "delivery_day": day,
-                    "delivery_slot": slot,
-                    "items": []
+            if key not in orders_map:
+                orders_map[key] = {
+                    "items": [],
+                    "day": day,
+                    "slot": slot
                 }
 
-            reminders[key]["items"].append({
+            orders_map[key]["items"].append({
                 "food": food,
                 "qty": qty,
                 "cutlery": cutlery
@@ -651,29 +650,28 @@ def callbacks(update: Update, context: CallbackContext):
 
         sent = 0
 
-        for r in reminders.values():
+        for (user_id, day, slot), data in orders_map.items():
             foods_text = "\n".join(
                 f"🍽 {i['food']} × {i['qty']} | 🥄 {i['cutlery']}"
-                for i in r["items"]
+                for i in data["items"]
             )
 
-            total_cutlery = sum(i["cutlery"] for i in r["items"])
+            total_cutlery = sum(i["cutlery"] for i in data["items"])
 
             msg = (
                 "⏰ یادآوری تحویل غذا\n\n"
                 f"{foods_text}\n"
                 f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
-                f"📅 روز تحویل: {r['delivery_day']}\n"
-                f"⏰ بازه تحویل: {r['delivery_slot']}\n\n"
+                f"📅 روز تحویل: {day}\n"
+                f"⏰ بازه تحویل: {slot}\n\n"
                 "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
             )
 
-            context.bot.send_message(r["user_id"], msg)
+            context.bot.send_message(user_id, msg)
             sent += 1
 
-        q.edit_message_text(f"✅ یادآوری برای {sent} مشتری ارسال شد")
+        q.edit_message_text(f"✅ یادآوری برای {sent} سفارش ارسال شد")
         return
-
     if q.data == "remind_cancel":
         q.edit_message_text("❌ ارسال یادآوری لغو شد")
         return
