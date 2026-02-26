@@ -408,14 +408,17 @@ def callbacks(update: Update, context: CallbackContext):
    
     if q.data == "check_join":
         if is_user_member(context.bot, uid):
-            q.edit_message_text("✅ عضویت شما تأیید شد. خوش آمدید 🌱")
-            context.bot.send_message(
-                uid,
-                "منوی اصلی:",
-                reply_markup=persistent_menu()
-            )
+            q.edit_message_text("✅ عضویت شما تأیید شد 🌱")
+
+        # اجرای مجدد start برای نمایش توضیح کامل و منو
+            start(update, context)
+
         else:
-            q.answer("❌ هنوز عضو کانال نیستید", show_alert=True)
+            q.answer(
+                "❌ هنوز عضو کانال نیستید\n\n"
+                "ابتدا عضو کانال شوید و دوباره امتحان کنید 👇",
+                show_alert=True
+            )
         return
     # ---------------- CUTLERY YES ----------------
     if q.data == "cutlery_yes":
