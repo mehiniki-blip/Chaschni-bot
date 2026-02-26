@@ -563,7 +563,21 @@ def callbacks(update: Update, context: CallbackContext):
         user_id = order["user_id"]
 
         if action == "ok":
-            close_order(order_no, "approved")
+            cur.execute("""
+                UPDATE orders
+                SET status = 'approved',
+                    payment_checked_at = ?
+                WHERE user_id = ?
+                  AND delivery_day = ?
+                  AND delivery_slot = ?
+                  AND status = 'pending'
+            """, (
+                datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+                order["user_id"],
+                order["delivery_day"],
+                order["delivery_slot"]
+            ))
+            conn.commit()
 
             delivery_text = (
                 "🚗 روش دریافت: ارسال"
