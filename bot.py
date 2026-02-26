@@ -475,7 +475,6 @@ def callbacks(update: Update, context: CallbackContext):
             f"💶 مبلغ کل: €{st['total']}",
             reply_markup=admin_keyboard(order_no)
         )
-        reset_user(uid)
         return
 
     # ---------------- DELIVERY SLOT ----------------
@@ -521,10 +520,15 @@ def callbacks(update: Update, context: CallbackContext):
                 else f"🎒 روش دریافت: تحویل حضوری\n📍 آدرس: {PICKUP_ADDRESS_FULL}"
             )
 
+            foods_text = "\n".join(
+                f"🍽 {i['food_name']} × {i['qty']}"
+                for i in order["items"]
+            )
+
             msg = (
                 "✅ سفارش شما تأیید شد 🙏\n\n"
                 "🧾 خلاصه سفارش:\n"
-                f"🍽 {order['food_name']} × {order['qty']}\n"
+                f"{foods_text}\n"
                 f"📅 روز تحویل: {order['delivery_day']}\n"
                 f"⏰ بازه تحویل: {order['delivery_slot']}\n"
                 f"{delivery_text}\n"
@@ -542,6 +546,7 @@ def callbacks(update: Update, context: CallbackContext):
             context.bot.send_message(user_id, "❌ سفارش شما لغو شد.")
             q.edit_message_text(q.message.text + "\n\n❌ لغو شد")
 
+        reset_user(user_id)
         orders_runtime.pop(order_no, None)
         return
 
