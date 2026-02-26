@@ -756,11 +756,12 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         qty = int(text)
+        item = st["current_item"]
         # چک ظرفیت روزانه غذا
         cur.execute("""
             SELECT SUM(qty) FROM orders
             WHERE food_key = ? AND date(created_at) = date('now', 'localtime')
-        """, (st["food_key"],))
+        """, (item["food_key"],))
         sold_today = cur.fetchone()[0] or 0
 
         remaining = MAX_DAILY - sold_today
