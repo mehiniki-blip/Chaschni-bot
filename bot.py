@@ -24,8 +24,8 @@ from telegram.ext import (
 
 # ================= CONFIG =================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID"))
 CHANNEL_USERNAME = "@Chaschnii"
+ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID"))
 PAYPAL_BASE_LINK = "https://www.paypal.com/paypalme/Chaschni?country.x=DE&locale.x=de_DE"
 CONTACT_USERNAME = "Chaschni"
 CUTLERY_PRICE = 0.30
@@ -109,12 +109,6 @@ def get_slot_count(delivery_day, slot):
           AND status != 'canceled'
     """, (delivery_day, slot))
     return cur.fetchone()[0] or 0
-def is_user_member(bot, user_id):
-    try:
-        member = bot.get_chat_member(CHANNEL_USERNAME, user_id)
-        return member.status in ["member", "administrator", "creator"]
-    except:
-        return False    
     
 # ---------- ANTI-SPAM ----------
 user_last_msgs = {}     # آخرین زمان پیام کاربر
@@ -131,6 +125,7 @@ def normalize_digits(text):
     for p, e in zip(persian, english):
         text = text.replace(p, e)
     return text.strip()
+
 def is_working_time():
     if TEST_MODE:
         return True
@@ -167,6 +162,13 @@ def get_target_delivery_day():
 
     return None  # دوشنبه یا پنج‌شنبه (روز تحویل → سفارش بسته)
     
+def is_user_member(bot, user_id):
+    try:
+        member = bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except:
+        return False
+        
 def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot):
     from random import randint
 
@@ -233,6 +235,7 @@ def join_channel_keyboard():
         [InlineKeyboardButton("📢 عضویت در کانال", url="https://t.me/Chaschnii")],
         [InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_join")]
     ])
+
 def persistent_menu():
     return ReplyKeyboardMarkup(
         [["🍽 شروع سفارش"], ["❌ لغو سفارش", "📞 تماس با ما"]],
@@ -322,13 +325,13 @@ def delivery_slot_keyboard(delivery_day):
 # ---------- COMMANDS ----------
 def start(update: Update, context: CallbackContext):
         if not is_user_member(context.bot, update.effective_user.id):
-            update.message.reply_text(
-                "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
-                "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
-                reply_markup=join_channel_keyboard()
-            )
-            return
         update.message.reply_text(
+            "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
+            "👇 بعد از عضویت، روی «بررسی عضویت» بزنید",
+            reply_markup=join_channel_keyboard()
+        )
+        return
+    update.message.reply_text(
         "👋 خوش آمدید به ربات تهیه غذا در هانوفر !\n\n"
         "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
         "🚚 تحویل غذا فقط در روزهای:\n"
@@ -379,18 +382,6 @@ def callbacks(update: Update, context: CallbackContext):
             q.answer("این غذا در منوی امروز نیست", show_alert=True)
             return
 
-        if q.data == "check_join":
-            if is_user_member(context.bot, uid):
-                q.edit_message_text("✅ عضویت شما تأیید شد. خوش آمدید 🌱")
-                context.bot.send_message(
-                    uid,
-                    "منوی اصلی:",
-                    reply_markup=persistent_menu()
-                )
-            else:
-                q.answer("❌ هنوز عضو کانال نیستید", show_alert=True)
-            return        
-
         f = foods[key]
         if not user_state.get(uid):
             user_state[uid] = {
@@ -411,7 +402,18 @@ def callbacks(update: Update, context: CallbackContext):
             "📦 لطفاً تعداد موردنظر را وارد کنید:"
         )
         return
-
+   
+    if q.data == "check_join":
+        if is_user_member(context.bot, uid):
+            q.edit_message_text("✅ عضویت شما تأیید شد. خوش آمدید 🌱")
+            context.bot.send_message(
+                uid,
+                "منوی اصلی:",
+                reply_markup=persistent_menu()
+            )
+        else:
+            q.answer("❌ هنوز عضو کانال نیستید", show_alert=True)
+        return
     # ---------------- CUTLERY YES ----------------
     if q.data == "cutlery_yes":
         st["step"] = "cutlery_qty"
@@ -842,12 +844,14 @@ def handle_text(update: Update, context: CallbackContext):
        
     # MENU
     if text == "🍽 شروع سفارش":
+        
         if not is_user_member(context.bot, uid):
             update.message.reply_text(
                 "📢 برای ثبت سفارش، ابتدا عضو کانال ما شوید 👇",
                 reply_markup=join_channel_keyboard()
             )
             return
+            
         if not is_working_time():
             update.message.reply_text(
             "📦 سفارش‌گیری امروز بسته است.\n\n"
