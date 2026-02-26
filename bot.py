@@ -329,7 +329,7 @@ def start(update: Update, context: CallbackContext):
                 reply_markup=join_channel_keyboard()
             )
             return
-    update.message.reply_text(
+        update.message.reply_text(
         "👋 خوش آمدید به ربات تهیه غذا در هانوفر !\n\n"
         "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
         "🚚 تحویل غذا فقط در روزهای:\n"
