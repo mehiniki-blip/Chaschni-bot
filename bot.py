@@ -436,8 +436,10 @@ def callbacks(update: Update, context: CallbackContext):
             )
             order_nos.append(order_no)
 
+        import copy
+
         for order_no in order_nos:
-            orders_runtime[order_no] = st.copy()
+            orders_runtime[order_no] = copy.deepcopy(st)
             orders_runtime[order_no]["user_id"] = uid
         context.bot.send_message(
             uid,
@@ -453,6 +455,11 @@ def callbacks(update: Update, context: CallbackContext):
             f"💶 مبلغ کل: €{st['total']}\n\n"
             "⏳ سفارش شما در انتظار تأیید ادمین است."
         )
+        foods_text = "\n".join(
+            f"🍽 {i['food_name']} × {i['qty']}"
+            for i in st["items"]
+        )
+
         context.bot.send_message(
             ADMIN_CHAT_ID,
             f"🆕 سفارش جدید\n\n"
@@ -463,11 +470,9 @@ def callbacks(update: Update, context: CallbackContext):
             f"📮 کد پستی: {st['postcode']}\n"
             f"📅 روز تحویل: {st['delivery_day']}\n"
             f"⏰ بازه تحویل: {st['delivery_slot']}\n"
-            "\n".join(
-                f"🍽 {i['food_name']} × {i['qty']}"
-                for i in st["items"]
-            ) + "\n"
-            f"💶 مبلغ: €{st['total']}",
+            f"{foods_text}\n"
+            f"🥄 قاشق/چنگال: {st.get('cutlery_qty', 0)}\n"
+            f"💶 مبلغ کل: €{st['total']}",
             reply_markup=admin_keyboard(order_no)
         )
         reset_user(uid)
