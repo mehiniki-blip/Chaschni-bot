@@ -420,17 +420,21 @@ def callbacks(update: Update, context: CallbackContext):
         if q.data == "paid_paypal":
             st["payment_method"] = "PayPal"
 
-        order_no = create_order(
-            uid,
-            st["food_key"],
-            st["food_name"],
-            st["qty"],
-            st["total"],
-            st.get("cutlery_qty", 0),
-            st["payment_method"],
-            st["delivery_day"],
-            st["delivery_slot"]
-        )
+        order_nos = []
+
+        for item in st["items"]:
+            order_no = create_order(
+                uid,
+                item["food_key"],
+                item["food_name"],
+                item["qty"],
+                st["total"],
+                st.get("cutlery_qty", 0),
+                st["payment_method"],
+                st["delivery_day"],
+                st["delivery_slot"]
+            )
+            order_nos.append(order_no)
 
         orders_runtime[order_no] = st
         orders_runtime[order_no]["user_id"] = uid
@@ -438,8 +442,11 @@ def callbacks(update: Update, context: CallbackContext):
         context.bot.send_message(
             uid,
             f"💳 پرداخت ثبت شد.\n"
-            f"🧾 شماره سفارش: {order_no}\n\n"
-            f"🍽 {st['food_name']} × {st['qty']}\n"
+            f"🧾 شماره سفارش: {', '.join(order_nos)}\n\n"
+            "\n".join(
+                f"🍽 {i['food_name']} × {i['qty']}"
+                for i in st["items"]
+            ) + "\n"
             f"📅 روز تحویل: {st['delivery_day']}\n"
             f"⏰ بازه تحویل: {st['delivery_slot']}\n"
             f"🥄 قاشق/چنگال: {st.get('cutlery_qty',0)}\n"
