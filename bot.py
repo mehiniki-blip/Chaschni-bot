@@ -665,6 +665,7 @@ def callbacks(update: Update, context: CallbackContext):
         sent = 0
 
         for (user_id, day, slot), data in orders_map.items():
+            delivery_label = f"فردا ({day})"
             foods_text = "\n".join(
                 f"🍽 {i['food']} × {i['qty']} | 🥄 {i['cutlery']}"
                 for i in data["items"]
@@ -676,7 +677,7 @@ def callbacks(update: Update, context: CallbackContext):
                 "⏰ یادآوری تحویل غذا\n\n"
                 f"{foods_text}\n"
                 f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
-                f"📅 روز تحویل: {day}\n"
+                f"📅 تحویل: {delivery_label}\n"
                 f"⏰ بازه تحویل: {slot}\n\n"
                 "🙏 لطفاً در بازه انتخاب‌شده آماده باشید"
             )
