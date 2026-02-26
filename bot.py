@@ -131,7 +131,6 @@ def normalize_digits(text):
     for p, e in zip(persian, english):
         text = text.replace(p, e)
     return text.strip()
-
 def is_working_time():
     if TEST_MODE:
         return True
