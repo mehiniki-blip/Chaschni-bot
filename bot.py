@@ -374,23 +374,7 @@ def start(update: Update, context: CallbackContext):
         uid,
         uid == ADMIN_CHAT_ID
     )
-
-    # ✅ پیام خوش‌آمد (برای اعضا)
-    update.message.reply_text(
-        "👋 خوش آمدید به ربات تهیه غذا در هانوفر !\n\n"
-        "🍽 سیستم سفارش‌دهی ما به‌صورت *پیش‌سفارش* انجام می‌شود.\n\n"
-        "🚚 تحویل غذا فقط در روزهای:\n"
-        "• دوشنبه\n"
-        "• پنج‌شنبه\n\n"
-        "🗓 ثبت سفارش:\n"
-        "• سه‌شنبه و چهارشنبه → برای تحویل پنج‌شنبه\n"
-        "• جمعه، شنبه و یکشنبه → برای تحویل دوشنبه\n\n"
-        "🚗 محدوده ارسال: 30163 + برخی خیابان‌های 30165\n\n"
-        "🙏 لطفاً سفارش خود را از قبل ثبت فرمایید.\n"
-        "برای شروع، از دکمه‌های زیر استفاده کنید:",
-        reply_markup=persistent_menu()
-    )
-
+    
     # ⚙️ پنل ادمین
     if update.effective_user.id == ADMIN_CHAT_ID:
         status = "🔵 تست فعال است" if TEST_MODE else "⚪ حالت واقعی فعال است"
@@ -451,14 +435,22 @@ def callbacks(update: Update, context: CallbackContext):
         if is_user_member(context.bot, uid):
             q.edit_message_text(
                 "✅ عضویت شما تأیید شد 🌱\n\n"
-                "در حال ورود به ربات..."
+                "خوش آمدید 👇"
             )
+
+        # ⬅️ این خط کلیدی است
+            send_welcome(
+                context.bot,
+                uid,
+                uid == ADMIN_CHAT_ID
+            )
+
         else:
             q.answer(show_alert=True)
             context.bot.send_message(
                 uid,
                 "❌ هنوز عضو کانال نیستید.\n\n"
-                "📢 لطفاً ابتدا عضو کانال شوید و سپس روی «بررسی عضویت» بزنید 👇",
+                "📢 لطفاً ابتدا عضو کانال شوید 👇",
                 reply_markup=join_channel_keyboard()
             )
         return
