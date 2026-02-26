@@ -393,7 +393,7 @@ def callbacks(update: Update, context: CallbackContext):
 
     # ---------------- CUTLERY NO ----------------
     if q.data == "cutlery_no":
-        st["cutlery_qty"] = 0
+        st["items"][-1]["cutlery_qty"] = 0
         st["step"] = "ask_more"
 
         q.edit_message_text(
@@ -448,17 +448,23 @@ def callbacks(update: Update, context: CallbackContext):
         for order_no in order_nos:
             orders_runtime[order_no] = copy.deepcopy(st)
             orders_runtime[order_no]["user_id"] = uid
+        foods_text = "\n".join(
+            f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
+            for i in st["items"]
+        )
+
+        total_cutlery = sum(
+            i.get("cutlery_qty", 0) for i in st["items"]
+        )
+
         context.bot.send_message(
             uid,
             f"💳 پرداخت ثبت شد.\n"
             f"🧾 شماره سفارش: {', '.join(order_nos)}\n\n"
-            "\n".join(
-                f"🍽 {i['food_name']} × {i['qty']}"
-                for i in st["items"]
-            ) + "\n"
+            f"{foods_text}\n"
+            f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
             f"📅 روز تحویل: {st['delivery_day']}\n"
             f"⏰ بازه تحویل: {st['delivery_slot']}\n"
-            f"🥄 قاشق/چنگال: {st.get('cutlery_qty',0)}\n"
             f"💶 مبلغ کل: €{st['total']}\n\n"
             "⏳ سفارش شما در انتظار تأیید ادمین است."
         )
@@ -490,7 +496,11 @@ def callbacks(update: Update, context: CallbackContext):
         st["delivery_slot"] = f"{start} – {end}"
 
     # محاسبه مبلغ نهایی
-        total = st["food_total"] + (st.get("cutlery_qty", 0) * CUTLERY_PRICE)
+        total_cutlery = sum(
+            i.get("cutlery_qty", 0) for i in st["items"]
+        )
+
+        total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
         st["total"] = total
         st["step"] = "pay"
 
@@ -833,6 +843,7 @@ def handle_text(update: Update, context: CallbackContext):
         item = st["current_item"]
         item["qty"] = qty
         item["food_total"] = qty * item["price"]
+        item["cutlery_qty"] = None
 
         st["items"].append(item)
         st.pop("current_item")
@@ -864,7 +875,7 @@ def handle_text(update: Update, context: CallbackContext):
             update.message.reply_text("❗ تعداد قاشق/چنگال نمی‌تواند بیشتر از تعداد غذا باشد.")
             return
 
-        st["cutlery_qty"] = c
+        st["items"][-1]["cutlery_qty"] = c
         st["step"] = "ask_more"
 
         update.message.reply_text(
