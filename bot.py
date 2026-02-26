@@ -324,8 +324,6 @@ def delivery_slot_keyboard(delivery_day):
     return InlineKeyboardMarkup(buttons)
 # ---------- COMMANDS ----------
 def start(update: Update, context: CallbackContext):
-
-    # 🔒 قفل عضویت کانال
     if not is_user_member(context.bot, update.effective_user.id):
         update.message.reply_text(
             "📢 برای استفاده از ربات، ابتدا عضو کانال ما شوید 🌱\n\n"
@@ -408,15 +406,18 @@ def callbacks(update: Update, context: CallbackContext):
    
     if q.data == "check_join":
         if is_user_member(context.bot, uid):
-            q.edit_message_text("✅ عضویت شما تأیید شد 🌱")
+            q.edit_message_text(
+                "✅ عضویت شما تأیید شد 🌱\n\n"
+                "اکنون می‌توانید از ربات استفاده کنید 👇"
+            )
 
-        # اجرای مجدد start برای نمایش توضیح کامل و منو
+        # اجرای کامل صفحه start
             start(update, context)
 
         else:
             q.answer(
                 "❌ هنوز عضو کانال نیستید\n\n"
-                "ابتدا عضو کانال شوید و دوباره امتحان کنید 👇",
+                "لطفاً ابتدا عضو کانال شوید و دوباره امتحان کنید 👇",
                 show_alert=True
             )
         return
