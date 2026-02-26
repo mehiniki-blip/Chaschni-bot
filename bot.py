@@ -453,13 +453,6 @@ def callbacks(update: Update, context: CallbackContext):
                 "✅ عضویت شما تأیید شد 🌱\n\n"
                 "در حال ورود به ربات..."
             )
-
-            send_welcome(
-                context.bot,
-                uid,
-                uid == ADMIN_CHAT_ID
-            )
-
         else:
             q.answer(show_alert=True)
             context.bot.send_message(
