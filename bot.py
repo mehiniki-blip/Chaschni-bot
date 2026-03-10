@@ -133,17 +133,30 @@ def is_working_time():
     if not ENABLE_TIME_LIMIT:
         return True
 
-    today = datetime.now(TIMEZONE).weekday()
+    now = datetime.now(TIMEZONE)
+    day = now.weekday()
+    hour = now.hour
 
-    # سه‌شنبه(1) و چهارشنبه(2) → پیش‌سفارش برای پنجشنبه(3)
-    if today in [1, 2]:
+    # سه‌شنبه → همیشه باز
+    if day == 1:
         return True
 
-    # جمعه(4)، شنبه(5)، یکشنبه(6) → پیش‌سفارش برای دوشنبه(0)
-    if today in [4, 5, 6]:
+    # چهارشنبه → فقط تا 18
+    if day == 2:
+        if hour < 18:
+            return True
+        return False
+
+    # جمعه و شنبه → باز
+    if day in [4, 5]:
         return True
 
-    # بقیه روزها سفارش‌گیری بسته است
+    # یکشنبه → فقط تا 18
+    if day == 6:
+        if hour < 18:
+            return True
+        return False
+
     return False
     
 def get_target_delivery_day():
