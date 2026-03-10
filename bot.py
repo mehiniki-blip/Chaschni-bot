@@ -843,7 +843,7 @@ def handle_text(update: Update, context: CallbackContext):
         update.message.reply_text("⚠️ پیام اضطراری ثبت شد")
         return
 
-       # --- ADMIN: ENABLE TEST MODE ---
+    
     # --- ADMIN: DISABLE TEST MODE ---
     if uid == ADMIN_CHAT_ID and "تست" in text and "غیر" in text:
         TEST_MODE = False
@@ -883,6 +883,53 @@ def handle_text(update: Update, context: CallbackContext):
         update.message.reply_text(report)
         return
 
+    # --- REPORT TOMORROW FOOD ---
+    if uid == ADMIN_CHAT_ID and text == "📊 گزارش فردا":
+
+        target = get_target_delivery_day()
+
+        if target == "monday":
+            day_fa = "دوشنبه"
+        elif target == "thursday":
+            day_fa = "پنج‌شنبه"
+        else:
+            update.message.reply_text("امروز گزارش فعالی وجود ندارد.")
+            return
+
+        cur.execute("""
+            SELECT food_name, SUM(qty), SUM(cutlery_qty)
+            FROM orders
+            WHERE delivery_day = ?
+            AND status != 'canceled'
+            GROUP BY food_name
+        """, (day_fa,))
+
+        rows = cur.fetchall()
+
+        if not rows:
+            update.message.reply_text("هیچ سفارشی ثبت نشده است.")
+            return
+
+        foods_text = ""
+        total_cutlery = 0
+        total_orders = 0
+
+        for food, qty, cutlery in rows:
+            foods_text += f"{food}: {qty}\n"
+            total_cutlery += cutlery or 0
+            total_orders += qty
+
+        msg = (
+            f"📊 گزارش غذا برای تحویل {day_fa}\n\n"
+            f"{foods_text}\n"
+            f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
+            f"📦 مجموع غذاها: {total_orders}"
+        )
+
+        update.message.reply_text(msg)
+        return
+    
+    
     # --- ADMIN: SEND DELIVERY REMINDER ---
     if uid == ADMIN_CHAT_ID and text == "📣 ارسال یادآوری تحویل":
         target = get_target_delivery_day()
