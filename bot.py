@@ -227,7 +227,7 @@ def get_foods_for_target_day():
     if target == "monday":
         return {
             "farani": {"name": "🍮 فرنی", "price": 3.5},
-            "salad": {"name": "🥗 سالاد ماکارونی", "price": 5},
+            "salad": {"name": "🥗 پروتینو (سالاد ماکارونی) ", "price": 5},
             "ash": {"name": "🍛 قیمه با برنج", "price": 8.5},
             "ghorme": {"name": "🍛🌿 قرمه سبزی با برنج", "price": 8.5},
         }
@@ -235,7 +235,7 @@ def get_foods_for_target_day():
     if target == "thursday":
         return {
             "farani": {"name": "🍮 فرنی", "price": 3.5},
-            "salad": {"name": "🥗 سالاد ماکارونی", "price": 5},
+            "salad": {"name": "🥗 پروتینو (سالاد ماکارونی)", "price": 5},
             "ash": {"name": "🍛 قیمه با برنج", "price": 8.5},
             "zereshk": {"name": "🍛🌿 قرمه سبزی با برنج", "price": 8.5},
         }
