@@ -752,9 +752,13 @@ def callbacks(update: Update, context: CallbackContext):
             q.edit_message_text(q.message.text + "\n\n✔️ تایید شد")
 
         else:
-            close_order(order_no, "canceled")
-            context.bot.send_message(user_id, "❌ سفارش شما لغو شد.")
-            q.edit_message_text(q.message.text + "\n\n❌ لغو شد")
+            user_state[uid] = {
+                "step": "admin_cancel_reason",
+                "order_no": order_no,
+                "target_user": user_id
+            }
+
+            q.edit_message_text(q.message.text + "\n\n📝 لطفاً دلیل لغو را بنویسید:")
 
         reset_user(user_id)
         orders_runtime.pop(order_no, None)
@@ -841,6 +845,25 @@ def handle_text(update: Update, context: CallbackContext):
     uid = update.effective_user.id
     text = update.message.text
     st = user_state.get(uid)
+    if st and st.get("step") == "admin_cancel_reason":
+        reason = text
+
+        order_no = st["order_no"]
+        target_user = st["target_user"]
+
+        close_order(order_no, "canceled")
+
+        context.bot.send_message(
+            target_user,
+            f"❌ سفارش شما لغو شد.\n\n"
+            f"📌 دلیل: {reason}\n\n"
+            "💰 در صورت پرداخت، مبلغ تا دقایقی دیگر بازگردانده می‌شود."
+        )
+
+        update.message.reply_text("✅ سفارش لغو شد و دلیل ارسال شد.")
+
+        reset_user(uid)
+        return
         # ---------- ANTI-SPAM CHECK ----------
     now = time.time()
 
