@@ -584,6 +584,7 @@ def callbacks(update: Update, context: CallbackContext):
                 st["delivery_slot"],
                 order_no=order_no
             )
+        
         import copy
 
         for order_no in order_nos:
@@ -701,6 +702,11 @@ def callbacks(update: Update, context: CallbackContext):
     if q.data.startswith("admin_"):
         _, action, order_no = q.data.split("_")
         order = orders_runtime.get(order_no)
+
+        if not order:
+            q.answer("❌ اطلاعات سفارش پیدا نشد", show_alert=True)
+            return
+
         user_id = order["user_id"]
 
         if action == "ok":
