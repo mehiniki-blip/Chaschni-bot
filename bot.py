@@ -520,11 +520,28 @@ def callbacks(update: Update, context: CallbackContext):
     if q.data == "paid_paypal":
         st = user_state.get(uid)
 
-        if q.data == "paid_paypal":
-            st["payment_method"] = "PayPal"
+        st["payment_method"] = "PayPal"
+
+    # بررسی اولین سفارش
+        cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
+        order_count = cur.fetchone()[0]
+
+        first_order = order_count == 0
+
+    # ✅ اول فرنی رو اضافه کن
+        if first_order:
+            st["items"].append({
+                "food_key": "gift_farani",
+                "food_name": "🍮 فرنی (هدیه اولین سفارش)",
+                "qty": 1,
+                "price": 0,
+                "food_total": 0,
+                "cutlery_qty": 0
+            })
 
         order_nos = []
 
+    # ✅ بعد ثبت کن
         for item in st["items"]:
             order_no = create_order(
                 uid,
