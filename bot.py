@@ -273,8 +273,20 @@ def food_keyboard():
     foods = get_foods_for_target_day()
     buttons = []
 
+    # ✅ اینجا باشه (فقط یکبار)
+    target = get_target_delivery_day()
+
+    if target == "monday":
+        day = "دوشنبه"
+    elif target == "thursday":
+        day = "پنج‌شنبه"
+    else:
+        day = None
+
+    # 👇 حالا loop
     for k, f in foods.items():
-        remaining = get_remaining_stock(k)
+
+        remaining = get_remaining_stock(k, day)
 
         # اگر موجودی تموم شده → اصلاً نمایش نده
         if remaining <= 0:
@@ -1075,17 +1087,6 @@ def handle_text(update: Update, context: CallbackContext):
 
         item = st["current_item"]
         item["qty"] = qty
-        create_order(
-            uid,
-            item["food_key"],
-            item["food_name"],
-            qty,
-            0,
-            0,
-            "pending",
-            st.get("delivery_day", ""),
-            st.get("delivery_slot", "")
-        )
         item["food_total"] = qty * item["price"]
         item["cutlery_qty"] = None
 
