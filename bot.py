@@ -104,15 +104,13 @@ def get_remaining_stock(food_key):
         SELECT SUM(qty) FROM orders
         WHERE food_key = ?
           AND delivery_day = ?
-          AND status != 'canceled'
+          AND status IN ('pending', 'approved')
     """, (food_key, day))
 
     sold = cur.fetchone()[0] or 0
     remaining = MAX_DAILY - sold
     return max(remaining, 0)
-    sold = cur.fetchone()[0] or 0
-    remaining = MAX_DAILY - sold
-    return max(remaining, 0)
+    
 
 def get_slot_count(delivery_day, slot):
     cur.execute("""
@@ -232,6 +230,15 @@ def close_order(order_no, status):
         datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
         order_no
     ))
+    conn.commit()
+
+def expire_pending_orders():
+    cur.execute("""
+        UPDATE orders
+        SET status = 'expired'
+        WHERE status = 'pending'
+        AND datetime(created_at) < datetime('now', '-10 minutes')
+    """)
     conn.commit()
 
 # ---------- MENU BASED ON DAY ----------
@@ -562,19 +569,15 @@ def callbacks(update: Update, context: CallbackContext):
         order_nos = [order_no]
 
         # ✅ بعد ثبت کن
-        for item in st["items"]:
-            create_order(
-                uid,
-                item["food_key"],
-                item["food_name"],
-                item["qty"],
-                st["total"],
-                item.get("cutlery_qty", 0),
-                st["payment_method"],
-                st["delivery_day"],
-                st["delivery_slot"],
-                order_no=order_no
-            )
+        cur.execute("""
+            UPDATE orders
+            SET status = 'approved',
+                payment_method = ?
+            WHERE user_id = ?
+              AND status = 'pending'
+        """, (st["payment_method"], uid))
+
+        conn.commit()
         import copy
 
         for order_no in order_nos:
@@ -827,6 +830,7 @@ def callbacks(update: Update, context: CallbackContext):
 def handle_text(update: Update, context: CallbackContext):
     global EMERGENCY_MESSAGE
     global TEST_MODE
+    expire_pending_orders()
  
     uid = update.effective_user.id
     text = update.message.text
@@ -1077,6 +1081,17 @@ def handle_text(update: Update, context: CallbackContext):
 
         item = st["current_item"]
         item["qty"] = qty
+        create_order(
+            uid,
+            item["food_key"],
+            item["food_name"],
+            qty,
+            0,
+            0,
+            "pending",
+            st.get("delivery_day", ""),
+            st.get("delivery_slot", "")
+        )
         item["food_total"] = qty * item["price"]
         item["cutlery_qty"] = None
 
