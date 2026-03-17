@@ -999,6 +999,8 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         update.message.reply_text(
+            "🎉 هدیه ویژه برای مشتریان جدید\n"
+            "🍮 با اولین سفارش یک فرنی رایگان دریافت کنید\n\n"
             f"📋 منوی {day_name}\n"
             f"⏰ لطفاً سفارش خود را قبل از روز تحویل ثبت کنید:"
         )
