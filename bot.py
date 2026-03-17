@@ -764,9 +764,9 @@ def callbacks(update: Update, context: CallbackContext):
                 "🙏 ممنون از اعتماد شما"
             )
 
-            context.bot.send_message(user_id, msg)
             q.edit_message_text(q.message.text + "\n\n✔️ تایید شد")
 
+            context.bot.send_message(user_id, msg)
             # ✅ فقط اینجا پاک کن
             orders_runtime.pop(order_no, None)
 
