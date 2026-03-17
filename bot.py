@@ -91,12 +91,25 @@ conn.commit()
 user_state = {}
 orders_runtime = {}
 def get_remaining_stock(food_key):
+    target = get_target_delivery_day()
+
+    if target == "monday":
+        day = "دوشنبه"
+    elif target == "thursday":
+        day = "پنج‌شنبه"
+    else:
+        return MAX_DAILY
+
     cur.execute("""
         SELECT SUM(qty) FROM orders
         WHERE food_key = ?
-          AND date(created_at) = date('now', 'localtime')
+          AND delivery_day = ?
           AND status != 'canceled'
-    """, (food_key,))
+    """, (food_key, day))
+
+    sold = cur.fetchone()[0] or 0
+    remaining = MAX_DAILY - sold
+    return max(remaining, 0)
     sold = cur.fetchone()[0] or 0
     remaining = MAX_DAILY - sold
     return max(remaining, 0)
@@ -1048,19 +1061,16 @@ def handle_text(update: Update, context: CallbackContext):
         qty = int(text)
         item = st["current_item"]
         # چک ظرفیت روزانه غذا
-        cur.execute("""
-            SELECT SUM(qty) FROM orders
-            WHERE food_key = ? AND date(created_at) = date('now', 'localtime')
-        """, (item["food_key"],))
+        remaining = get_remaining_stock(item["food_key"])
         sold_today = cur.fetchone()[0] or 0
 
         remaining = MAX_DAILY - sold_today
 # جلوگیری از فروش بیشتر از ظرفیت روزانه
         if qty > remaining:
             if remaining <= 0:
-                update.message.reply_text(f"🚫 موجودی امروز {st['food_name']} تمام شد!")
-            else:
-                update.message.reply_text(f"⚠️ فقط {remaining} عدد {st['food_name']} باقی مانده است.")
+                update.message.reply_text(f"🚫 موجودی {item['food_name']} تمام شد!")
+        else:
+                update.message.reply_text(f"⚠️ فقط {remaining} عدد {item['food_name']} باقی مانده است.")
             return
 
         if qty <= 0 or qty > MAX_DAILY:
