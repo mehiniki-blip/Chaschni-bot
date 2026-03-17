@@ -1017,6 +1017,20 @@ def handle_text(update: Update, context: CallbackContext):
         target = get_target_delivery_day()
 
         if target == "monday":
+            delivery_day = "دوشنبه"
+        elif target == "thursday":
+            delivery_day = "پنج‌شنبه"
+        else:
+            delivery_day = None
+
+        user_state[uid] = {
+            "step": "qty",
+            "items": [],
+            "delivery_day": delivery_day
+        }
+        target = get_target_delivery_day()
+
+        if target == "monday":
             day_name = "دوشنبه"
         elif target == "thursday":
             day_name = "پنج‌شنبه"
@@ -1067,11 +1081,18 @@ def handle_text(update: Update, context: CallbackContext):
 
         qty = int(text)
         item = st["current_item"]
-        # چک ظرفیت روزانه غذا
+        # تعداد این غذا داخل همین سفارش فعلی
+        already_in_cart = sum(
+            i["qty"] for i in st["items"]
+            if i["food_key"] == item["food_key"]
+        )
+
         remaining = get_remaining_stock(
             item["food_key"],
             st.get("delivery_day")
         )
+
+        remaining -= already_in_cart
        
     # جلوگیری از فروش بیشتر از ظرفیت روزانه
         if qty > remaining:
