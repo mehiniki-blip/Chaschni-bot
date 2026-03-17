@@ -282,6 +282,10 @@ def food_keyboard():
         day = "پنج‌شنبه"
     else:
         day = None
+    if not day:
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ فعلاً سفارشی فعال نیست", callback_data="noop")]
+        ])    
 
     # 👇 حالا loop
     for k, f in foods.items():
@@ -543,6 +547,11 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- PAYMENT CONFIRM ----------------
     if q.data == "paid_paypal":
         st = user_state.get(uid)
+        if st.get("paid"):
+            q.answer("⚠️ این سفارش قبلاً ثبت شده", show_alert=True)
+            return
+
+        st["paid"] = True
 
         st["payment_method"] = "PayPal"
 
@@ -735,6 +744,7 @@ def callbacks(update: Update, context: CallbackContext):
             approved_total_cutlery = sum(
                 i.get("cutlery_qty", 0) for i in order["items"]
             )
+
             foods_text = "\n".join(
                 f"🍽 {i['food_name']} × {i['qty']}"
                 for i in order["items"]
@@ -757,6 +767,9 @@ def callbacks(update: Update, context: CallbackContext):
             context.bot.send_message(user_id, msg)
             q.edit_message_text(q.message.text + "\n\n✔️ تایید شد")
 
+            # ✅ فقط اینجا پاک کن
+            orders_runtime.pop(order_no, None)
+
         else:
             user_state[uid] = {
                 "step": "admin_cancel_reason",
@@ -766,10 +779,9 @@ def callbacks(update: Update, context: CallbackContext):
 
             q.edit_message_text(q.message.text + "\n\n📝 لطفاً دلیل لغو را بنویسید:")
 
-        reset_user(user_id)
-        orders_runtime.pop(order_no, None)
-        return
+            context.bot.send_message(uid, "✍️ لطفاً دلیل را بنویسید:")
 
+        return
     # ---------------- REMINDER ----------------
     if q.data.startswith("remind_"):
         _, target = q.data.split("_")
