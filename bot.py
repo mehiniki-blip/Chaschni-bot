@@ -182,12 +182,13 @@ def is_user_member(bot, user_id):
     except:
         return False
         
-def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot):
+def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot, order_no=None):
     from random import randint
 
-    today = datetime.now(TIMEZONE).strftime("%Y%m%d")
-    rand = randint(100, 999)
-    order_no = f"CH-{today}-{rand}"
+    if order_no is None:
+        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
+        rand = randint(100, 999)
+        order_no = f"CH-{today}-{rand}"
 
     cur.execute("""
         INSERT INTO orders
@@ -522,13 +523,19 @@ def callbacks(update: Update, context: CallbackContext):
 
         st["payment_method"] = "PayPal"
 
-    # بررسی اولین سفارش
+        # بررسی اولین سفارش
         cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
         order_count = cur.fetchone()[0]
 
         first_order = order_count == 0
 
-    # ✅ اول فرنی رو اضافه کن
+        # ساخت یک شماره سفارش مشترک
+        from random import randint
+        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
+        rand = randint(100, 999)
+        order_no = f"CH-{today}-{rand}"
+
+        # ✅ اول فرنی رو اضافه کن
         if first_order:
             st["items"].append({
                 "food_key": "gift_farani",
@@ -539,11 +546,11 @@ def callbacks(update: Update, context: CallbackContext):
                 "cutlery_qty": 0
             })
 
-        order_nos = []
+        order_nos = [order_no]
 
-    # ✅ بعد ثبت کن
+        # ✅ بعد ثبت کن
         for item in st["items"]:
-            order_no = create_order(
+            create_order(
                 uid,
                 item["food_key"],
                 item["food_name"],
@@ -552,10 +559,9 @@ def callbacks(update: Update, context: CallbackContext):
                 item.get("cutlery_qty", 0),
                 st["payment_method"],
                 st["delivery_day"],
-                st["delivery_slot"]
+                st["delivery_slot"],
+                order_no=order_no
             )
-            order_nos.append(order_no)
-
         import copy
 
         for order_no in order_nos:
