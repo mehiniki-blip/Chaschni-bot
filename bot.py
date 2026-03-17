@@ -91,6 +91,8 @@ conn.commit()
 user_state = {}
 orders_runtime = {}
 def get_remaining_stock(food_key, delivery_day):
+    expire_pending_orders()
+    
     cur.execute("""
         SELECT SUM(qty) FROM orders
         WHERE food_key = ?
@@ -582,6 +584,7 @@ def callbacks(update: Update, context: CallbackContext):
         today = datetime.now(TIMEZONE).strftime("%Y%m%d")
         rand = randint(100, 999)
         order_no = f"CH-{today}-{rand}"
+        st["order_no"] = order_no
 
         # ✅ اول فرنی رو اضافه کن
         if first_order:
@@ -597,8 +600,6 @@ def callbacks(update: Update, context: CallbackContext):
         order_nos = [order_no]
 
         cur.execute("""
-        UPDATE orders
-        SET status = 'approved',
         payment_method = ?
         WHERE order_no = ?
         """, (st["payment_method"], st["order_no"]))
@@ -1109,6 +1110,11 @@ def handle_text(update: Update, context: CallbackContext):
 
     # CANCEL
     if text == "❌ لغو سفارش":
+        order_no = st.get("order_no")
+
+        if order_no:
+            close_order(order_no, "canceled")
+
         reset_user(uid)
         update.message.reply_text("سفارش لغو شد.", reply_markup=persistent_menu())
         return
