@@ -228,7 +228,7 @@ def expire_pending_orders():
         UPDATE orders
         SET status = 'expired'
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-10 minutes')
+        AND datetime(created_at) < datetime('now', '-5 minutes')
     """)
     conn.commit()
 
@@ -554,6 +554,22 @@ def callbacks(update: Update, context: CallbackContext):
         st["paid"] = True
 
         st["payment_method"] = "PayPal"
+        cur.execute("""
+        SELECT status FROM orders WHERE order_no = ?
+        """, (st.get("order_no"),))
+
+        row = cur.fetchone()
+
+        if not row or row[0] != "pending":
+            q.answer("⏳ زمان سفارش تمام شده", show_alert=True)
+
+            context.bot.send_message(
+                uid,
+                "⛔ زمان پرداخت شما به پایان رسیده.\nلطفاً دوباره سفارش ثبت کنید."
+            )
+
+            reset_user(uid)
+            return
 
         # بررسی اولین سفارش
         cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
@@ -580,19 +596,14 @@ def callbacks(update: Update, context: CallbackContext):
 
         order_nos = [order_no]
 
-        for item in st["items"]:
-            create_order(
-                uid,
-                item["food_key"],
-                item["food_name"],
-                item["qty"],
-                st["total"],
-                item.get("cutlery_qty", 0),
-                st["payment_method"],
-                st["delivery_day"],
-                st["delivery_slot"],
-                order_no=order_no
-            )
+        cur.execute("""
+        UPDATE orders
+        SET status = 'approved',
+        payment_method = ?
+        WHERE order_no = ?
+        """, (st["payment_method"], st["order_no"]))
+
+        conn.commit()
         
         import copy
 
@@ -667,6 +678,7 @@ def callbacks(update: Update, context: CallbackContext):
             f"✅ بازه تحویل انتخاب شد:\n"
             f"⏰ {start} – {end}\n\n"
             f"💰 مبلغ نهایی: €{total}\n\n"
+            "⏳ لطفاً حداکثر تا ۵ دقیقه پرداخت را انجام دهید.\n\n"
             "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
             "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
         )
@@ -1156,6 +1168,20 @@ def handle_text(update: Update, context: CallbackContext):
         item["cutlery_qty"] = None
 
         st["items"].append(item)
+        # 🔒 رزرو واقعی غذا
+        order_no = create_order(
+            uid,
+            item["food_key"],
+            item["food_name"],
+            qty,
+            0,
+            0,
+            None,
+            st["delivery_day"],
+            None
+        )
+
+        st["order_no"] = order_no
         st.pop("current_item")
 
         st["food_total"] = sum(i["food_total"] for i in st["items"])
