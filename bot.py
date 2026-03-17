@@ -1062,14 +1062,12 @@ def handle_text(update: Update, context: CallbackContext):
         item = st["current_item"]
         # چک ظرفیت روزانه غذا
         remaining = get_remaining_stock(item["food_key"])
-        sold_today = cur.fetchone()[0] or 0
-
-        remaining = MAX_DAILY - sold_today
-# جلوگیری از فروش بیشتر از ظرفیت روزانه
+       
+    # جلوگیری از فروش بیشتر از ظرفیت روزانه
         if qty > remaining:
             if remaining <= 0:
                 update.message.reply_text(f"🚫 موجودی {item['food_name']} تمام شد!")
-        else:
+            else:
                 update.message.reply_text(f"⚠️ فقط {remaining} عدد {item['food_name']} باقی مانده است.")
             return
 
