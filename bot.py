@@ -90,23 +90,14 @@ conn.commit()
 # ---------- UTILITY ----------
 user_state = {}
 orders_runtime = {}
-def get_remaining_stock(food_key):
-    target = get_target_delivery_day()
-
-    if target == "monday":
-        day = "دوشنبه"
-    elif target == "thursday":
-        day = "پنج‌شنبه"
-    else:
-        return MAX_DAILY
-
+def get_remaining_stock(food_key, delivery_day):
     cur.execute("""
         SELECT SUM(qty) FROM orders
         WHERE food_key = ?
-          AND delivery_day = ?
-          AND status IN ('pending', 'approved')
-    """, (food_key, day))
-
+        AND delivery_day = ?
+        AND status IN ('pending', 'approved')
+    """, (food_key, delivery_day))
+    
     sold = cur.fetchone()[0] or 0
     remaining = MAX_DAILY - sold
     return max(remaining, 0)
@@ -1065,7 +1056,10 @@ def handle_text(update: Update, context: CallbackContext):
         qty = int(text)
         item = st["current_item"]
         # چک ظرفیت روزانه غذا
-        remaining = get_remaining_stock(item["food_key"])
+        remaining = get_remaining_stock(
+            item["food_key"],
+            st.get("delivery_day")
+        )
        
     # جلوگیری از فروش بیشتر از ظرفیت روزانه
         if qty > remaining:
