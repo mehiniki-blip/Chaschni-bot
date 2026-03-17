@@ -571,16 +571,19 @@ def callbacks(update: Update, context: CallbackContext):
 
         order_nos = [order_no]
 
-        # ✅ بعد ثبت کن
-        cur.execute("""
-            UPDATE orders
-            SET status = 'approved',
-                payment_method = ?
-            WHERE user_id = ?
-              AND status = 'pending'
-        """, (st["payment_method"], uid))
-
-        conn.commit()
+       for item in st["items"]:
+            create_order(
+                uid,
+                item["food_key"],
+                item["food_name"],
+                item["qty"],
+                st["total"],
+                item.get("cutlery_qty", 0),
+                st["payment_method"],
+                st["delivery_day"],
+                st["delivery_slot"],
+                order_no=order_no
+            )
         import copy
 
         for order_no in order_nos:
