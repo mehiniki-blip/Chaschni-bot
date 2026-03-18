@@ -554,7 +554,6 @@ def callbacks(update: Update, context: CallbackContext):
         st["paid"] = True
 
         st["payment_method"] = "PayPal"
-        cur.execute("""
         # مجموع قاشق/چنگال
         total_cutlery = sum(
             i.get("cutlery_qty", 0) for i in st["items"]
