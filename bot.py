@@ -225,12 +225,33 @@ def close_order(order_no, status):
 
 def expire_pending_orders():
     cur.execute("""
+        SELECT order_no, user_id FROM orders
+        WHERE status = 'pending'
+        AND datetime(created_at) < datetime('now', '-5 minutes')
+    """)
+    
+    expired_orders = cur.fetchall()
+
+    # تغییر وضعیت
+    cur.execute("""
         UPDATE orders
         SET status = 'expired'
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-10 minutes')
+        AND datetime(created_at) < datetime('now', '-5 minutes')
     """)
     conn.commit()
+
+    # ارسال پیام
+    for order_no, user_id in expired_orders:
+        try:
+            bot.send_message(
+                user_id,
+                "⏰ زمان پرداخت شما به پایان رسید.\n\n"
+                "❌ سفارش لغو شد و غذاها به منو بازگشتند.\n"
+                "🙏 لطفاً دوباره سفارش ثبت کنید."
+            )
+        except:
+            pass
 
 # ---------- MENU BASED ON DAY ----------
 def get_foods_for_target_day():
