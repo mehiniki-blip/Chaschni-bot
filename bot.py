@@ -602,8 +602,8 @@ def callbacks(update: Update, context: CallbackContext):
         import copy
 
         
-            orders_runtime[order_no] = copy.deepcopy(st)
-            orders_runtime[order_no]["user_id"] = uid
+        orders_runtime[order_no] = copy.deepcopy(st)
+        orders_runtime[order_no]["user_id"] = uid
         foods_text = "\n".join(
             f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
             for i in st["items"]
