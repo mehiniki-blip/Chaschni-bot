@@ -570,12 +570,19 @@ def callbacks(update: Update, context: CallbackContext):
         expire_pending_orders()
 
         cur.execute("""
-        SELECT status FROM orders WHERE order_no = ?
-        """, (st.get("order_no"),))
+        SELECT status FROM orders
+        WHERE user_id = ?
+        AND delivery_day = ?
+        AND delivery_slot = ?
+        """, (
+            uid,
+            st["delivery_day"],
+            st["delivery_slot"]
+        ))
 
-        row = cur.fetchone()
+        rows = cur.fetchall()
 
-        if not row or row[0] != "pending":
+        if not rows or any(r[0] != "pending" for r in rows):
             q.answer("⏰ زمان پرداخت شما تمام شده", show_alert=True)
 
             context.bot.send_message(
