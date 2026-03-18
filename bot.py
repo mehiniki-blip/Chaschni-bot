@@ -555,14 +555,22 @@ def callbacks(update: Update, context: CallbackContext):
 
         st["payment_method"] = "PayPal"
         cur.execute("""
+        # مجموع قاشق/چنگال
+        total_cutlery = sum(
+            i.get("cutlery_qty", 0) for i in st["items"]
+        )
+
+        cur.execute("""
         UPDATE orders
         SET payment_method = ?,
             total = ?,
+            cutlery_qty = ?,
             delivery_slot = ?
         WHERE order_no = ?
         """, (
             st["payment_method"],
             st["total"],
+            total_cutlery,
             st["delivery_slot"],
             st["order_no"]
         ))
