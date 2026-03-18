@@ -891,10 +891,7 @@ def handle_text(update: Update, context: CallbackContext):
     global EMERGENCY_MESSAGE
     global TEST_MODE
     expire_pending_orders()
-    # 🔒 بررسی ظرفیت slot
-    if get_slot_count(st["delivery_day"], st["delivery_slot"]) >= 3:
-        q.answer("⛔ این بازه زمانی پر شده", show_alert=True)
-        return
+    
  
     uid = update.effective_user.id
     text = update.message.text
