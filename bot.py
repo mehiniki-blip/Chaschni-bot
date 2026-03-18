@@ -95,7 +95,7 @@ def get_remaining_stock(food_key, delivery_day):
         SELECT SUM(qty) FROM orders
         WHERE food_key = ?
         AND delivery_day = ?
-        AND status IN ('pending', 'approved')
+        AND status = 'approved'
     """, (food_key, delivery_day))
     
     sold = cur.fetchone()[0] or 0
@@ -582,7 +582,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         rows = cur.fetchall()
 
-        if not rows or any(r[0] != "pending" for r in rows):
+        if not rows:
             q.answer("⏰ زمان پرداخت شما تمام شده", show_alert=True)
 
             context.bot.send_message(
