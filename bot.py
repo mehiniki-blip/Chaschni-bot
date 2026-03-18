@@ -567,6 +567,24 @@ def callbacks(update: Update, context: CallbackContext):
 
     # ---------------- PAYMENT CONFIRM ----------------
     if q.data == "paid_paypal":
+        expire_pending_orders()
+
+        cur.execute("""
+        SELECT status FROM orders WHERE order_no = ?
+        """, (st.get("order_no"),))
+
+        row = cur.fetchone()
+
+        if not row or row[0] != "pending":
+            q.answer("⏰ زمان پرداخت شما تمام شده", show_alert=True)
+
+            context.bot.send_message(
+                uid,
+                "❌ زمان پرداخت به پایان رسیده.\nلطفاً دوباره سفارش ثبت کنید."
+            )
+
+            reset_user(uid)
+            return
         st = user_state.get(uid)
         if st.get("paid"):
             q.answer("⚠️ این سفارش قبلاً ثبت شده", show_alert=True)
@@ -608,6 +626,7 @@ def callbacks(update: Update, context: CallbackContext):
         today = datetime.now(TIMEZONE).strftime("%Y%m%d")
         rand = randint(100, 999)
         order_no = f"CH-{today}-{rand}"
+        st["order_no"] = order_no
 
         # ✅ اول فرنی رو اضافه کن
         if first_order:
@@ -801,16 +820,19 @@ def callbacks(update: Update, context: CallbackContext):
             orders_runtime.pop(order_no, None)
 
         else:
+            close_order(order_no, "canceled")  # 🔥 مهم
+
             user_state[uid] = {
                 "step": "admin_cancel_reason",
                 "order_no": order_no,
                 "target_user": user_id
             }
 
+            orders_runtime.pop(order_no, None)
+
             q.edit_message_text(q.message.text + "\n\n📝 لطفاً دلیل لغو را بنویسید:")
 
             context.bot.send_message(uid, "✍️ لطفاً دلیل را بنویسید:")
-
         return
     # ---------------- REMINDER ----------------
     if q.data.startswith("remind_"):
