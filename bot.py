@@ -2,6 +2,8 @@ from flask import Flask, request
 import os
 import time
 import sqlite3
+import threading
+db_lock = threading.Lock()
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -187,31 +189,62 @@ def is_user_member(bot, user_id):
 def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot, order_no=None):
     from random import randint
 
-    if order_no is None:
-        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
-        rand = randint(100, 999)
-        order_no = f"CH-{today}-{rand}"
+    with db_lock:  # 🔐 جلوگیری از همزمانی
 
-    cur.execute("""
-        INSERT INTO orders
-        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at, delivery_day, delivery_slot)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
-    """, (
-        order_no,
-        user_id,
-        food_key,
-        food_name,
-        qty,
-        cutlery_qty,
-        total,
-        payment_method,
-        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-        delivery_day,
-        delivery_slot
-    ))
-    conn.commit()
-    return order_no
+        # ✅ چک موجودی واقعی داخل قفل
+        cur.execute("""
+            SELECT SUM(qty) FROM orders
+            WHERE food_key = ?
+            AND delivery_day = ?
+            AND status IN ('pending', 'approved')
+        """, (food_key, delivery_day))
 
+        sold = cur.fetchone()[0] or 0
+        remaining = MAX_DAILY - sold
+
+        if qty > remaining:
+            return None
+
+        # ✅ چک ظرفیت بازه زمانی
+        cur.execute("""
+            SELECT COUNT(*) FROM orders
+            WHERE delivery_day = ?
+            AND delivery_slot = ?
+            AND status != 'canceled'
+        """, (delivery_day, delivery_slot))
+
+        slot_count = cur.fetchone()[0] or 0
+
+        if slot_count >= 3:
+            return None
+
+        # ساخت شماره سفارش
+        if order_no is None:
+            today = datetime.now(TIMEZONE).strftime("%Y%m%d")
+            rand = randint(100, 999)
+            order_no = f"CH-{today}-{rand}"
+
+        # ثبت سفارش
+        cur.execute("""
+            INSERT INTO orders
+            (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at, delivery_day, delivery_slot)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+        """, (
+            order_no,
+            user_id,
+            food_key,
+            food_name,
+            qty,
+            cutlery_qty,
+            total,
+            payment_method,
+            datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+            delivery_day,
+            delivery_slot
+        ))
+
+        conn.commit()
+        return order_no
 def close_order(order_no, status):
     cur.execute("""
         UPDATE orders SET status=?, payment_checked_at=?
@@ -580,8 +613,10 @@ def callbacks(update: Update, context: CallbackContext):
 
         order_nos = [order_no]
 
+        order_failed = False
+
         for item in st["items"]:
-            create_order(
+            result = create_order(
                 uid,
                 item["food_key"],
                 item["food_name"],
@@ -593,7 +628,18 @@ def callbacks(update: Update, context: CallbackContext):
                 st["delivery_slot"],
                 order_no=order_no
             )
-        
+
+            if not result:
+                order_failed = True
+                break
+
+        # ⬇️ این باید بیرون حلقه باشه
+        if order_failed:
+            context.bot.send_message(
+                uid,
+                "❌ متأسفانه ظرفیت غذا یا بازه زمانی پر شده.\nلطفاً دوباره تلاش کنید 🙏"
+            )
+            return
         import copy
 
         for order_no in order_nos:
