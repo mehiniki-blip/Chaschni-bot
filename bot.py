@@ -261,7 +261,7 @@ def expire_pending_orders():
         UPDATE orders
         SET status = 'expired'
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-10 minutes')
+        AND datetime(created_at) < datetime('now', '-5 minutes')
     """)
     conn.commit()
 
@@ -611,27 +611,20 @@ def callbacks(update: Update, context: CallbackContext):
                 "cutlery_qty": 0
             })
 
-        order_nos = [order_no]
+        for order_no in st["order_nos"]:
+            cur.execute("""
+                UPDATE orders
+                SET status = 'approved',
+                    payment_method = ?,
+                    payment_checked_at = ?
+                WHERE order_no = ?
+            """, (
+                "PayPal",
+                datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+                order_no
+            ))
 
-        order_failed = False
-
-        for item in st["items"]:
-            result = create_order(
-                uid,
-                item["food_key"],
-                item["food_name"],
-                item["qty"],
-                st["total"],
-                item.get("cutlery_qty", 0),
-                st["payment_method"],
-                st["delivery_day"],
-                st["delivery_slot"],
-                order_no=order_no
-            )
-
-            if not result:
-                order_failed = True
-                break
+        conn.commit()
 
         # ⬇️ این باید بیرون حلقه باشه
         if order_failed:
@@ -699,7 +692,36 @@ def callbacks(update: Update, context: CallbackContext):
     if q.data.startswith("slot_"):
         _, start, end = q.data.split("_")
         st["delivery_slot"] = f"{start} – {end}"
+        order_nos = []
+        order_failed = False
 
+        for item in st["items"]:
+            result = create_order(
+                uid,
+                item["food_key"],
+                item["food_name"],
+                item["qty"],
+                0,
+                item.get("cutlery_qty", 0),
+                "pending_payment",
+                st["delivery_day"],
+                f"{start} – {end}"
+            )
+
+            if not result:
+                order_failed = True
+                break
+
+            order_nos.append(result)
+
+        if order_failed:
+            context.bot.send_message(
+                uid,
+                "❌ ظرفیت پر شده، لطفاً دوباره تلاش کنید"
+            )
+            return
+
+        st["order_nos"] = order_nos
     # محاسبه مبلغ نهایی
         total_cutlery = sum(
             i.get("cutlery_qty", 0) for i in st["items"]
@@ -715,6 +737,8 @@ def callbacks(update: Update, context: CallbackContext):
             f"💰 مبلغ نهایی: €{total}\n\n"
             "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
             "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
+            "⏳ این سفارش فقط ۵ دقیقه برای شما رزرو می‌ماند.\n"
+            "در صورت عدم پرداخت، به‌صورت خودکار لغو خواهد شد.\n\n"
         )
 
         context.bot.send_message(
