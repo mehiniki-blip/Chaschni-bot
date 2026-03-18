@@ -95,7 +95,7 @@ def get_remaining_stock(food_key, delivery_day):
         SELECT SUM(qty) FROM orders
         WHERE food_key = ?
         AND delivery_day = ?
-        AND status = 'approved'
+        AND status IN ('pending','approved')
     """, (food_key, delivery_day))
     
     sold = cur.fetchone()[0] or 0
@@ -108,7 +108,7 @@ def get_slot_count(delivery_day, slot):
         SELECT COUNT(*) FROM orders
         WHERE delivery_day = ?
           AND delivery_slot = ?
-          AND status != 'canceled'
+          AND status IN ('pending','approved')
     """, (delivery_day, slot))
     return cur.fetchone()[0] or 0
     
@@ -187,30 +187,43 @@ def is_user_member(bot, user_id):
 def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_method, delivery_day, delivery_slot, order_no=None):
     from random import randint
 
-    if order_no is None:
-        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
-        rand = randint(100, 999)
-        order_no = f"CH-{today}-{rand}"
+    try:
+        conn.execute("BEGIN IMMEDIATE")
 
-    cur.execute("""
-        INSERT INTO orders
-        (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at, delivery_day, delivery_slot)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
-    """, (
-        order_no,
-        user_id,
-        food_key,
-        food_name,
-        qty,
-        cutlery_qty,
-        total,
-        payment_method,
-        datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-        delivery_day,
-        delivery_slot
-    ))
-    conn.commit()
-    return order_no
+        remaining = get_remaining_stock(food_key, delivery_day)
+        if qty > remaining:
+            conn.rollback()
+            return None
+
+        if order_no is None:
+            today = datetime.now(TIMEZONE).strftime("%Y%m%d")
+            rand = randint(100, 999)
+            order_no = f"CH-{today}-{rand}"
+
+        cur.execute("""
+            INSERT INTO orders
+            (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at, delivery_day, delivery_slot)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+        """, (
+            order_no,
+            user_id,
+            food_key,
+            food_name,
+            qty,
+            cutlery_qty,
+            total,
+            payment_method,
+            datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+            delivery_day,
+            delivery_slot
+        ))
+
+        conn.commit()
+        return order_no
+
+    except:
+        conn.rollback()
+        return None
 
 def close_order(order_no, status):
     cur.execute("""
@@ -224,25 +237,32 @@ def close_order(order_no, status):
     conn.commit()
 
 def expire_pending_orders():
-    cur.execute("""
-        SELECT order_no, user_id FROM orders
-        WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-5 minutes')
-    """)
-    
-    expired_orders = cur.fetchall()
+    now = datetime.now(TIMEZONE)
 
-    # تغییر وضعیت
     cur.execute("""
-        UPDATE orders
-        SET status = 'expired'
+        SELECT order_no, user_id, created_at FROM orders
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-5 minutes')
     """)
-    conn.commit()
 
-    # ارسال پیام
-    for order_no, user_id in expired_orders:
+    rows = cur.fetchall()
+    expired = []
+
+    for order_no, user_id, created_at in rows:
+        created_dt = datetime.strptime(created_at, "%Y-%m-%d %H:%M")
+        created_dt = created_dt.replace(tzinfo=TIMEZONE)
+
+        diff = (now - created_dt).total_seconds()
+
+        if diff > 300:
+            expired.append((order_no, user_id))
+
+    for order_no, user_id in expired:
+        cur.execute("""
+            UPDATE orders
+            SET status = 'expired'
+            WHERE order_no = ?
+        """, (order_no,))
+
         try:
             bot.send_message(
                 user_id,
@@ -252,6 +272,8 @@ def expire_pending_orders():
             )
         except:
             pass
+
+    conn.commit()
 
 # ---------- MENU BASED ON DAY ----------
 def get_foods_for_target_day():
@@ -567,31 +589,6 @@ def callbacks(update: Update, context: CallbackContext):
 
     # ---------------- PAYMENT CONFIRM ----------------
     if q.data == "paid_paypal":
-        expire_pending_orders()
-
-        cur.execute("""
-        SELECT status FROM orders
-        WHERE user_id = ?
-        AND delivery_day = ?
-        AND delivery_slot = ?
-        """, (
-            uid,
-            st["delivery_day"],
-            st["delivery_slot"]
-        ))
-
-        rows = cur.fetchall()
-
-        if not rows:
-            q.answer("⏰ زمان پرداخت شما تمام شده", show_alert=True)
-
-            context.bot.send_message(
-                uid,
-                "❌ زمان پرداخت به پایان رسیده.\nلطفاً دوباره سفارش ثبت کنید."
-            )
-
-            reset_user(uid)
-            return
         st = user_state.get(uid)
         if st.get("paid"):
             q.answer("⚠️ این سفارش قبلاً ثبت شده", show_alert=True)
@@ -600,27 +597,6 @@ def callbacks(update: Update, context: CallbackContext):
         st["paid"] = True
 
         st["payment_method"] = "PayPal"
-        # مجموع قاشق/چنگال
-        total_cutlery = sum(
-            i.get("cutlery_qty", 0) for i in st["items"]
-        )
-
-        cur.execute("""
-        UPDATE orders
-        SET payment_method = ?,
-            total = ?,
-            cutlery_qty = ?,
-            delivery_slot = ?
-        WHERE order_no = ?
-        """, (
-            st["payment_method"],
-            st["total"],
-            total_cutlery,
-            st["delivery_slot"],
-            st["order_no"]
-        ))
-
-        conn.commit()
 
         # بررسی اولین سفارش
         cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
@@ -628,13 +604,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         first_order = order_count == 0
 
-        # ساخت یک شماره سفارش مشترک
-        from random import randint
-        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
-        rand = randint(100, 999)
-        order_no = f"CH-{today}-{rand}"
-        st["order_no"] = order_no
-
+       
         # ✅ اول فرنی رو اضافه کن
         if first_order:
             st["items"].append({
@@ -648,7 +618,19 @@ def callbacks(update: Update, context: CallbackContext):
 
         order_nos = [order_no]
 
-        
+        for item in st["items"]:
+            create_order(
+                uid,
+                item["food_key"],
+                item["food_name"],
+                item["qty"],
+                st["total"],
+                item.get("cutlery_qty", 0),
+                st["payment_method"],
+                st["delivery_day"],
+                st["delivery_slot"],
+                order_no=order_no
+            )
         
         import copy
 
@@ -779,18 +761,12 @@ def callbacks(update: Update, context: CallbackContext):
                 UPDATE orders
                 SET status = 'approved',
                     payment_checked_at = ?
-                WHERE user_id = ?
-                  AND delivery_day = ?
-                  AND delivery_slot = ?
-                  AND status = 'pending'
+                WHERE order_no = ?
             """, (
                 datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-                order["user_id"],
-                order["delivery_day"],
-                order["delivery_slot"]
+                order_no
             ))
-            conn.commit()
-
+            
             delivery_text = (
                 "🚗 روش دریافت: ارسال"
                 if order["delivery_method"] == "delivery"
@@ -820,26 +796,23 @@ def callbacks(update: Update, context: CallbackContext):
                 "🙏 ممنون از اعتماد شما"
             )
 
+            context.bot.send_message(user_id, msg)
             q.edit_message_text(q.message.text + "\n\n✔️ تایید شد")
 
-            context.bot.send_message(user_id, msg)
             # ✅ فقط اینجا پاک کن
             orders_runtime.pop(order_no, None)
 
         else:
-            close_order(order_no, "canceled")  # 🔥 مهم
-
             user_state[uid] = {
                 "step": "admin_cancel_reason",
                 "order_no": order_no,
                 "target_user": user_id
             }
 
-            orders_runtime.pop(order_no, None)
-
             q.edit_message_text(q.message.text + "\n\n📝 لطفاً دلیل لغو را بنویسید:")
 
             context.bot.send_message(uid, "✍️ لطفاً دلیل را بنویسید:")
+
         return
     # ---------------- REMINDER ----------------
     if q.data.startswith("remind_"):
@@ -918,6 +891,10 @@ def handle_text(update: Update, context: CallbackContext):
     global EMERGENCY_MESSAGE
     global TEST_MODE
     expire_pending_orders()
+    # 🔒 بررسی ظرفیت slot
+    if get_slot_count(st["delivery_day"], st["delivery_slot"]) >= 3:
+        q.answer("⛔ این بازه زمانی پر شده", show_alert=True)
+        return
  
     uid = update.effective_user.id
     text = update.message.text
@@ -1215,19 +1192,6 @@ def handle_text(update: Update, context: CallbackContext):
         item["cutlery_qty"] = None
 
         st["items"].append(item)
-        order_no = create_order(
-            uid,
-            item["food_key"],
-            item["food_name"],
-            qty,
-            0,  # فعلاً مبلغ مهم 
-            0,  # قاشق بعداً تنظیم میشه
-            None,
-            st["delivery_day"],
-            None
-        )
-
-        st["order_no"] = order_no
         st.pop("current_item")
 
         st["food_total"] = sum(i["food_total"] for i in st["items"])
