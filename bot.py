@@ -257,12 +257,27 @@ def close_order(order_no, status):
     conn.commit()
 
 def expire_pending_orders():
+    now = datetime.now(TIMEZONE)
+
     cur.execute("""
-        UPDATE orders
-        SET status = 'expired'
+        SELECT id, created_at FROM orders
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-5 minutes')
     """)
+
+    rows = cur.fetchall()
+
+    for order_id, created_at_str in rows:
+        created_at = datetime.strptime(created_at_str, "%Y-%m-%d %H:%M")
+
+        diff = (now - created_at).total_seconds()
+
+        if diff > 300:  # 5 minutes
+            cur.execute("""
+                UPDATE orders
+                SET status = 'expired'
+                WHERE id = ?
+            """, (order_id,))
+
     conn.commit()
 
 # ---------- MENU BASED ON DAY ----------
@@ -611,7 +626,7 @@ def callbacks(update: Update, context: CallbackContext):
                 "cutlery_qty": 0
             })
 
-        for order_no in st["order_nos"]:
+        for order_no in st.get("order_nos", []):
             cur.execute("""
                 UPDATE orders
                 SET status = 'approved',
@@ -703,7 +718,7 @@ def callbacks(update: Update, context: CallbackContext):
                 item["qty"],
                 0,
                 item.get("cutlery_qty", 0),
-                "pending_payment",
+                "pending",
                 st["delivery_day"],
                 f"{start} – {end}"
             )
