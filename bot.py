@@ -554,6 +554,20 @@ def callbacks(update: Update, context: CallbackContext):
         st["paid"] = True
 
         st["payment_method"] = "PayPal"
+        cur.execute("""
+        UPDATE orders
+        SET payment_method = ?,
+            total = ?,
+            delivery_slot = ?
+        WHERE order_no = ?
+        """, (
+            st["payment_method"],
+            st["total"],
+            st["delivery_slot"],
+            st["order_no"]
+        ))
+
+        conn.commit()
 
         # بررسی اولین سفارش
         cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
@@ -580,19 +594,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         order_nos = [order_no]
 
-        for item in st["items"]:
-            create_order(
-                uid,
-                item["food_key"],
-                item["food_name"],
-                item["qty"],
-                st["total"],
-                item.get("cutlery_qty", 0),
-                st["payment_method"],
-                st["delivery_day"],
-                st["delivery_slot"],
-                order_no=order_no
-            )
+        
         
         import copy
 
