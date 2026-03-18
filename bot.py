@@ -91,8 +91,6 @@ conn.commit()
 user_state = {}
 orders_runtime = {}
 def get_remaining_stock(food_key, delivery_day):
-    expire_pending_orders()
-    
     cur.execute("""
         SELECT SUM(qty) FROM orders
         WHERE food_key = ?
@@ -226,12 +224,11 @@ def close_order(order_no, status):
     conn.commit()
 
 def expire_pending_orders():
-    return
     cur.execute("""
         UPDATE orders
         SET status = 'expired'
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-5 minutes')
+        AND datetime(created_at) < datetime('now', '-10 minutes')
     """)
     conn.commit()
 
@@ -557,7 +554,6 @@ def callbacks(update: Update, context: CallbackContext):
         st["paid"] = True
 
         st["payment_method"] = "PayPal"
-        
 
         # بررسی اولین سفارش
         cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
@@ -570,7 +566,6 @@ def callbacks(update: Update, context: CallbackContext):
         today = datetime.now(TIMEZONE).strftime("%Y%m%d")
         rand = randint(100, 999)
         order_no = f"CH-{today}-{rand}"
-       
 
         # ✅ اول فرنی رو اضافه کن
         if first_order:
@@ -582,6 +577,8 @@ def callbacks(update: Update, context: CallbackContext):
                 "food_total": 0,
                 "cutlery_qty": 0
             })
+
+        order_nos = [order_no]
 
         for item in st["items"]:
             create_order(
@@ -596,14 +593,12 @@ def callbacks(update: Update, context: CallbackContext):
                 st["delivery_slot"],
                 order_no=order_no
             )
-
-        conn.commit()
         
         import copy
 
-        
-        orders_runtime[order_no] = copy.deepcopy(st)
-        orders_runtime[order_no]["user_id"] = uid
+        for order_no in order_nos:
+            orders_runtime[order_no] = copy.deepcopy(st)
+            orders_runtime[order_no]["user_id"] = uid
         foods_text = "\n".join(
             f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
             for i in st["items"]
@@ -672,7 +667,6 @@ def callbacks(update: Update, context: CallbackContext):
             f"✅ بازه تحویل انتخاب شد:\n"
             f"⏰ {start} – {end}\n\n"
             f"💰 مبلغ نهایی: €{total}\n\n"
-            "⏳ لطفاً حداکثر تا ۵ دقیقه پرداخت را انجام دهید.\n\n"
             "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
             "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
         )
@@ -1103,11 +1097,6 @@ def handle_text(update: Update, context: CallbackContext):
 
     # CANCEL
     if text == "❌ لغو سفارش":
-        order_no = st.get("order_no")
-
-        if order_no:
-            close_order(order_no, "canceled")
-
         reset_user(uid)
         update.message.reply_text("سفارش لغو شد.", reply_markup=persistent_menu())
         return
@@ -1167,6 +1156,19 @@ def handle_text(update: Update, context: CallbackContext):
         item["cutlery_qty"] = None
 
         st["items"].append(item)
+        order_no = create_order(
+            uid,
+            item["food_key"],
+            item["food_name"],
+            qty,
+            0,  # فعلاً مبلغ مهم 
+            0,  # قاشق بعداً تنظیم میشه
+            None,
+            st["delivery_day"],
+            None
+        )
+
+        st["order_no"] = order_no
         st.pop("current_item")
 
         st["food_total"] = sum(i["food_total"] for i in st["items"])
