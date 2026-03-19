@@ -641,18 +641,33 @@ def callbacks(update: Update, context: CallbackContext):
 
         conn.commit()
 
-        # ⬇️ این باید بیرون حلقه باشه
-        if order_failed:
-            context.bot.send_message(
-                uid,
-                "❌ متأسفانه ظرفیت غذا یا بازه زمانی پر شده.\nلطفاً دوباره تلاش کنید 🙏"
-            )
-            return
         import copy
 
+        order_nos = st.get("order_nos", [])
+
+        if not order_nos:
+            context.bot.send_message(uid, "❌ خطا در ثبت سفارش، لطفاً دوباره تلاش کنید")
+            return
+
         for order_no in order_nos:
+            # تایید سفارش
+            cur.execute("""
+                UPDATE orders
+                SET status = 'approved',
+                    payment_method = ?,
+                    payment_checked_at = ?
+                WHERE order_no = ?
+            """, (
+                "PayPal",
+                datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+                order_no
+            ))
+
+            # ذخیره برای ادمین
             orders_runtime[order_no] = copy.deepcopy(st)
             orders_runtime[order_no]["user_id"] = uid
+
+        conn.commit()
         foods_text = "\n".join(
             f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
             for i in st["items"]
