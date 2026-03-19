@@ -93,26 +93,51 @@ conn.commit()
 user_state = {}
 orders_runtime = {}
 def get_remaining_stock(food_key, delivery_day):
+    now = datetime.now(TIMEZONE)
+
     cur.execute("""
-        SELECT SUM(qty) FROM orders
+        SELECT qty, created_at FROM orders
         WHERE food_key = ?
         AND delivery_day = ?
         AND status IN ('pending', 'approved')
     """, (food_key, delivery_day))
-    
-    sold = cur.fetchone()[0] or 0
-    remaining = MAX_DAILY - sold
+
+    rows = cur.fetchall()
+
+    total = 0
+
+    for qty, created_at_str in rows:
+        created_at = datetime.strptime(created_at_str, "%Y-%m-%d %H:%M")
+
+        # فقط اگر کمتر از ۵ دقیقه گذشته → حساب کن
+        if (now - created_at).total_seconds() <= 300:
+            total += qty
+
+    remaining = MAX_DAILY - total
     return max(remaining, 0)
     
 
 def get_slot_count(delivery_day, slot):
+    now = datetime.now(TIMEZONE)
+
     cur.execute("""
-        SELECT COUNT(*) FROM orders
+        SELECT created_at FROM orders
         WHERE delivery_day = ?
-          AND delivery_slot = ?
-          AND status != 'canceled'
+        AND delivery_slot = ?
+        AND status != 'canceled'
     """, (delivery_day, slot))
-    return cur.fetchone()[0] or 0
+
+    rows = cur.fetchall()
+
+    count = 0
+
+    for (created_at_str,) in rows:
+        created_at = datetime.strptime(created_at_str, "%Y-%m-%d %H:%M")
+
+        if (now - created_at).total_seconds() <= 300:
+            count += 1
+
+    return count
     
 # ---------- ANTI-SPAM ----------
 user_last_msgs = {}     # آخرین زمان پیام کاربر
