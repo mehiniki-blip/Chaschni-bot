@@ -623,19 +623,6 @@ def callbacks(update: Update, context: CallbackContext):
             q.answer("⚠️ این سفارش قبلاً ثبت شده", show_alert=True)
             return
 
-        # جلوگیری از ثبت تکراری (حتی اگر state پاک شد)
-        cur.execute("""
-        SELECT COUNT(*) FROM orders
-        WHERE user_id = ?
-        AND datetime(created_at) > datetime('now', '-2 minutes')
-        """, (uid,))
-
-        recent = cur.fetchone()[0]
-
-        if recent > 0 and not st.get("paid"):
-            context.bot.send_message(uid, "⚠️ سفارش شما قبلاً ثبت شده")
-            return
-
         st["payment_method"] = "PayPal"
 
         # بررسی اولین سفارش
