@@ -223,6 +223,70 @@ def close_order(order_no, status):
     ))
     conn.commit()
 
+def safe_create_order(user_id, items, delivery_day, delivery_slot, total, payment_method):
+    try:
+        conn.execute("BEGIN IMMEDIATE")  # 🔒 قفل دیتابیس
+
+        # 1. چک موجودی
+        for item in items:
+            cur.execute("""
+                SELECT SUM(qty) FROM orders
+                WHERE food_key = ?
+                AND delivery_day = ?
+                AND status IN ('pending','approved')
+            """, (item["food_key"], delivery_day))
+
+            sold = cur.fetchone()[0] or 0
+            if sold + item["qty"] > MAX_DAILY:
+                conn.rollback()
+                return False, "❌ موجودی غذا کافی نیست"
+
+        # 2. چک ظرفیت تایم
+        cur.execute("""
+            SELECT COUNT(*) FROM orders
+            WHERE delivery_day = ?
+            AND delivery_slot = ?
+            AND status != 'canceled'
+        """, (delivery_day, delivery_slot))
+
+        count = cur.fetchone()[0] or 0
+
+        if count >= 3:
+            conn.rollback()
+            return False, "❌ این بازه زمانی پر شده"
+
+        # 3. ثبت سفارش
+        from random import randint
+        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
+        rand = randint(100, 999)
+        order_no = f"CH-{today}-{rand}"
+
+        for item in items:
+            cur.execute("""
+                INSERT INTO orders
+                (order_no, user_id, food_key, food_name, qty, cutlery_qty, total, status, payment_method, created_at, delivery_day, delivery_slot)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+            """, (
+                order_no,
+                user_id,
+                item["food_key"],
+                item["food_name"],
+                item["qty"],
+                item.get("cutlery_qty", 0),
+                total,
+                payment_method,
+                datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+                delivery_day,
+                delivery_slot
+            ))
+
+        conn.commit()
+        return True, order_no
+
+    except Exception as e:
+        conn.rollback()
+        return False, str(e)
+
 def expire_pending_orders():
     cur.execute("""
         UPDATE orders
@@ -580,19 +644,20 @@ def callbacks(update: Update, context: CallbackContext):
 
         order_nos = [order_no]
 
-        for item in st["items"]:
-            create_order(
-                uid,
-                item["food_key"],
-                item["food_name"],
-                item["qty"],
-                st["total"],
-                item.get("cutlery_qty", 0),
-                st["payment_method"],
-                st["delivery_day"],
-                st["delivery_slot"],
-                order_no=order_no
-            )
+        success, result = safe_create_order(
+            uid,
+            st["items"],
+            st["delivery_day"],
+            st["delivery_slot"],
+            st["total"],
+            "PayPal"
+        )
+
+        if not success:
+            context.bot.send_message(uid, result)
+            return
+
+        order_no = result
         
         import copy
 
