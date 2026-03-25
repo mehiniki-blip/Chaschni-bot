@@ -95,7 +95,7 @@ def get_remaining_stock(food_key, delivery_day):
         SELECT SUM(qty) FROM orders
         WHERE food_key = ?
         AND delivery_day = ?
-        AND status IN ('pending', 'approved')
+        AND status IN ('pending','approved')
     """, (food_key, delivery_day))
     
     sold = cur.fetchone()[0] or 0
@@ -108,7 +108,7 @@ def get_slot_count(delivery_day, slot):
         SELECT COUNT(*) FROM orders
         WHERE delivery_day = ?
           AND delivery_slot = ?
-          AND status != 'canceled'
+          AND status IN ('pending','approved')
     """, (delivery_day, slot))
     return cur.fetchone()[0] or 0
     
@@ -229,6 +229,8 @@ def safe_create_order(user_id, items, delivery_day, delivery_slot, total, paymen
 
         # 1. چک موجودی
         for item in items:
+            if item["food_key"] == "gift_farani":
+                continue
             cur.execute("""
                 SELECT SUM(qty) FROM orders
                 WHERE food_key = ?
@@ -246,7 +248,7 @@ def safe_create_order(user_id, items, delivery_day, delivery_slot, total, paymen
             SELECT COUNT(*) FROM orders
             WHERE delivery_day = ?
             AND delivery_slot = ?
-            AND status != 'canceled'
+            AND status IN ('pending','approved')
         """, (delivery_day, delivery_slot))
 
         count = cur.fetchone()[0] or 0
@@ -611,27 +613,37 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- PAYMENT CONFIRM ----------------
     if q.data == "paid_paypal":
         st = user_state.get(uid)
+
+        if not st:
+            q.answer("خطا در سفارش", show_alert=True)
+            return
+
+        # جلوگیری از دابل کلیک
         if st.get("paid"):
             q.answer("⚠️ این سفارش قبلاً ثبت شده", show_alert=True)
             return
 
-        st["paid"] = True
+        # جلوگیری از ثبت تکراری (حتی اگر state پاک شد)
+        cur.execute("""
+        SELECT COUNT(*) FROM orders
+        WHERE user_id = ?
+        AND datetime(created_at) > datetime('now', '-2 minutes')
+        """, (uid,))
+
+        recent = cur.fetchone()[0]
+
+        if recent > 0 and not st.get("paid"):
+            context.bot.send_message(uid, "⚠️ سفارش شما قبلاً ثبت شده")
+            return
 
         st["payment_method"] = "PayPal"
 
         # بررسی اولین سفارش
         cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
         order_count = cur.fetchone()[0]
-
         first_order = order_count == 0
-
-        # ساخت یک شماره سفارش مشترک
-        from random import randint
-        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
-        rand = randint(100, 999)
-        order_no = f"CH-{today}-{rand}"
-
-        # ✅ اول فرنی رو اضافه کن
+    
+        # هدیه اولین سفارش
         if first_order:
             st["items"].append({
                 "food_key": "gift_farani",
@@ -642,8 +654,7 @@ def callbacks(update: Update, context: CallbackContext):
                 "cutlery_qty": 0
             })
 
-        order_nos = [order_no]
-
+        # ثبت امن سفارش
         success, result = safe_create_order(
             uid,
             st["items"],
@@ -657,13 +668,16 @@ def callbacks(update: Update, context: CallbackContext):
             context.bot.send_message(uid, result)
             return
 
-        order_no = result
-        
-        import copy
+        # ✅ فقط بعد از موفقیت
+        st["paid"] = True
 
-        for order_no in order_nos:
-            orders_runtime[order_no] = copy.deepcopy(st)
-            orders_runtime[order_no]["user_id"] = uid
+        order_no = result
+        order_nos = [order_no]
+
+        import copy
+        orders_runtime[order_no] = copy.deepcopy(st)
+        orders_runtime[order_no]["user_id"] = uid
+
         foods_text = "\n".join(
             f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
             for i in st["items"]
@@ -676,7 +690,7 @@ def callbacks(update: Update, context: CallbackContext):
         context.bot.send_message(
             uid,
             f"💳 پرداخت ثبت شد.\n"
-            f"🧾 شماره سفارش: {', '.join(order_nos)}\n\n"
+            f"🧾 شماره سفارش: {order_no}\n\n"
             f"{foods_text}\n"
             f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
             f"📅 روز تحویل: {st['delivery_day']}\n"
@@ -684,11 +698,8 @@ def callbacks(update: Update, context: CallbackContext):
             f"💶 مبلغ کل: €{st['total']}\n\n"
             "⏳ سفارش شما در انتظار تأیید ادمین است."
         )
-        foods_text = "\n".join(
-            f"🍽 {i['food_name']} × {i['qty']}"
-            for i in st["items"]
-        )
 
+        # پیام ادمین
         admin_foods_text = "\n".join(
             f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
             for i in st["items"]
@@ -697,6 +708,7 @@ def callbacks(update: Update, context: CallbackContext):
         admin_total_cutlery = sum(
             i.get("cutlery_qty", 0) for i in st["items"]
         )
+
         context.bot.send_message(
             ADMIN_CHAT_ID,
             f"🆕 سفارش جدید\n\n"
@@ -717,7 +729,13 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- DELIVERY SLOT ----------------
     if q.data.startswith("slot_"):
         _, start, end = q.data.split("_")
-        st["delivery_slot"] = f"{start} – {end}"
+        slot = f"{start} – {end}"
+
+        if get_slot_count(st["delivery_day"], slot) >= 3:
+            q.answer("❌ این بازه زمانی پر شده", show_alert=True)
+            return
+
+        st["delivery_slot"] = slot
 
     # محاسبه مبلغ نهایی
         total_cutlery = sum(
