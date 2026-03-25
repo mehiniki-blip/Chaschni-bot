@@ -228,7 +228,7 @@ def expire_pending_orders():
         UPDATE orders
         SET status = 'expired'
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-10 minutes')
+        AND datetime(created_at) < datetime('now', '-5 minutes')
     """)
     conn.commit()
 
@@ -547,25 +547,65 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- PAYMENT CONFIRM ----------------
     if q.data == "paid_paypal":
         st = user_state.get(uid)
-
         if st.get("paid"):
             q.answer("⚠️ این سفارش قبلاً ثبت شده", show_alert=True)
             return
 
         st["paid"] = True
+
         st["payment_method"] = "PayPal"
 
-        order_no = st.get("order_no")
+        # بررسی اولین سفارش
+        cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
+        order_count = cur.fetchone()[0]
 
-        # پیام به کاربر
-        context.bot.send_message(
-            uid,
-            f"💳 پرداخت ثبت شد.\n"
-            f"🧾 شماره سفارش: {order_no}\n\n"
-            "⏳ سفارش شما در انتظار تأیید ادمین است."
-        )
+        first_order = order_count == 0
 
-        # متن غذاها
+        # ساخت یک شماره سفارش مشترک
+        from random import randint
+        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
+        rand = randint(100, 999)
+        order_no = f"CH-{today}-{rand}"
+
+        # ✅ اول فرنی رو اضافه کن
+        if first_order:
+            st["items"].append({
+                "food_key": "gift_farani",
+                "food_name": "🍮 فرنی (هدیه اولین سفارش)",
+                "qty": 1,
+                "price": 0,
+                "food_total": 0,
+                "cutlery_qty": 0
+            })
+
+        order_nos = [order_no]
+
+        # آپدیت سفارش موجود
+        cur.execute("""
+        UPDATE orders
+        SET status = 'approved',
+            payment_method = ?,
+            total = ?,
+            cutlery_qty = ?,
+            delivery_slot = ?,
+            payment_checked_at = ?
+        WHERE order_no = ?
+        """, (
+            "PayPal",
+            st["total"],
+            sum(i.get("cutlery_qty", 0) for i in st["items"]),
+            st["delivery_slot"],
+            datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+            st["order_no"]
+        ))
+
+        conn.commit()
+        
+        import copy
+
+        for order_no in order_nos:
+            orders_runtime[order_no] = copy.deepcopy(st)
+            orders_runtime[order_no]["user_id"] = uid
         foods_text = "\n".join(
             f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
             for i in st["items"]
@@ -575,7 +615,30 @@ def callbacks(update: Update, context: CallbackContext):
             i.get("cutlery_qty", 0) for i in st["items"]
         )
 
-        # پیام به ادمین
+        context.bot.send_message(
+            uid,
+            f"💳 پرداخت ثبت شد.\n"
+            f"🧾 شماره سفارش: {', '.join(order_nos)}\n\n"
+            f"{foods_text}\n"
+            f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
+            f"📅 روز تحویل: {st['delivery_day']}\n"
+            f"⏰ بازه تحویل: {st['delivery_slot']}\n"
+            f"💶 مبلغ کل: €{st['total']}\n\n"
+            "⏳ سفارش شما در انتظار تأیید ادمین است."
+        )
+        foods_text = "\n".join(
+            f"🍽 {i['food_name']} × {i['qty']}"
+            for i in st["items"]
+        )
+
+        admin_foods_text = "\n".join(
+            f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
+            for i in st["items"]
+        )
+
+        admin_total_cutlery = sum(
+            i.get("cutlery_qty", 0) for i in st["items"]
+        )
         context.bot.send_message(
             ADMIN_CHAT_ID,
             f"🆕 سفارش جدید\n\n"
@@ -586,12 +649,11 @@ def callbacks(update: Update, context: CallbackContext):
             f"📮 کد پستی: {st['postcode']}\n"
             f"📅 روز تحویل: {st['delivery_day']}\n"
             f"⏰ بازه تحویل: {st['delivery_slot']}\n\n"
-            f"{foods_text}\n"
-            f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
+            f"{admin_foods_text}\n"
+            f"🥄 مجموع قاشق/چنگال: {admin_total_cutlery}\n"
             f"💶 مبلغ کل: €{st['total']}",
             reply_markup=admin_keyboard(order_no)
         )
-
         return
 
     # ---------------- DELIVERY SLOT ----------------
@@ -608,48 +670,6 @@ def callbacks(update: Update, context: CallbackContext):
         st["total"] = total
         st["step"] = "pay"
 
-        # 🔒 بررسی ظرفیت قبل از ثبت
-        for item in st["items"]:
-            remaining = get_remaining_stock(
-                item["food_key"],
-                st["delivery_day"]
-            )
-
-            if item["qty"] > remaining:
-                q.edit_message_text(
-                    f"❌ متأسفانه {item['food_name']} کافی موجود نیست.\n"
-                    f"حداکثر قابل سفارش: {remaining}"
-                )
-                return
-
-        # 🔒 بررسی ظرفیت بازه زمانی
-        if get_slot_count(st["delivery_day"], st["delivery_slot"]) >= 3:
-            q.edit_message_text("❌ این بازه زمانی پر شده است، لطفاً یکی دیگر انتخاب کنید.")
-            return
-
-        # ✅ ساخت شماره سفارش
-        from random import randint
-        today = datetime.now(TIMEZONE).strftime("%Y%m%d")
-        rand = randint(100, 999)
-        order_no = f"CH-{today}-{rand}"
-
-        st["order_no"] = order_no
-
-        # ✅ ثبت سفارش به صورت pending (رزرو ظرفیت)
-        for item in st["items"]:
-            create_order(
-                uid,
-                item["food_key"],
-                item["food_name"],
-                item["qty"],
-                st["total"],
-                item.get("cutlery_qty", 0),
-                "PayPal",
-                st["delivery_day"],
-                st["delivery_slot"],
-                order_no=order_no
-            )
-        
         q.edit_message_text(
             f"✅ بازه تحویل انتخاب شد:\n"
             f"⏰ {start} – {end}\n\n"
@@ -1143,6 +1163,22 @@ def handle_text(update: Update, context: CallbackContext):
         item["cutlery_qty"] = None
 
         st["items"].append(item)
+
+        # 🔥 ساخت سفارش pending همینجا
+        order_no = create_order(
+            uid,
+            item["food_key"],
+            item["food_name"],
+            qty,
+            0,  # مبلغ بعداً
+            0,  # قاشق بعداً
+            None,
+            st["delivery_day"],
+            None
+        )
+
+        st["order_no"] = order_no
+
         st.pop("current_item")
 
         st["food_total"] = sum(i["food_total"] for i in st["items"])
