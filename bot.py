@@ -1104,8 +1104,21 @@ def handle_text(update: Update, context: CallbackContext):
 
     # CANCEL
     if text == "❌ لغو سفارش":
+        # 🔥 برگردوندن موجودی
+        cur.execute("""
+        UPDATE orders
+        SET status = 'canceled'
+        WHERE user_id = ?
+        AND status = 'pending'
+        """, (uid,))
+        conn.commit()
+
         reset_user(uid)
-        update.message.reply_text("سفارش لغو شد.", reply_markup=persistent_menu())
+
+        update.message.reply_text(
+            "❌ سفارش لغو شد و موارد به منو بازگشت.",
+            reply_markup=persistent_menu()
+        )
         return
 
     # CONTACT
