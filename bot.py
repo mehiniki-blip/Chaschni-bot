@@ -228,7 +228,7 @@ def expire_pending_orders():
         UPDATE orders
         SET status = 'expired'
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-5 minutes')
+        AND datetime(created_at) < datetime('now', '-10 minutes')
     """)
     conn.commit()
 
@@ -580,26 +580,19 @@ def callbacks(update: Update, context: CallbackContext):
 
         order_nos = [order_no]
 
-        # آپدیت سفارش موجود
-        cur.execute("""
-        UPDATE orders
-        SET status = 'approved',
-            payment_method = ?,
-            total = ?,
-            cutlery_qty = ?,
-            delivery_slot = ?,
-            payment_checked_at = ?
-        WHERE order_no = ?
-        """, (
-            "PayPal",
-            st["total"],
-            sum(i.get("cutlery_qty", 0) for i in st["items"]),
-            st["delivery_slot"],
-            datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-            st["order_no"]
-        ))
-
-        conn.commit()
+        for item in st["items"]:
+            create_order(
+                uid,
+                item["food_key"],
+                item["food_name"],
+                item["qty"],
+                st["total"],
+                item.get("cutlery_qty", 0),
+                st["payment_method"],
+                st["delivery_day"],
+                st["delivery_slot"],
+                order_no=order_no
+            )
         
         import copy
 
@@ -1104,21 +1097,8 @@ def handle_text(update: Update, context: CallbackContext):
 
     # CANCEL
     if text == "❌ لغو سفارش":
-        # 🔥 برگردوندن موجودی
-        cur.execute("""
-        UPDATE orders
-        SET status = 'canceled'
-        WHERE user_id = ?
-        AND status = 'pending'
-        """, (uid,))
-        conn.commit()
-
         reset_user(uid)
-
-        update.message.reply_text(
-            "❌ سفارش لغو شد و موارد به منو بازگشت.",
-            reply_markup=persistent_menu()
-        )
+        update.message.reply_text("سفارش لغو شد.", reply_markup=persistent_menu())
         return
 
     # CONTACT
@@ -1176,22 +1156,6 @@ def handle_text(update: Update, context: CallbackContext):
         item["cutlery_qty"] = None
 
         st["items"].append(item)
-
-        # 🔥 ساخت سفارش pending همینجا
-        order_no = create_order(
-            uid,
-            item["food_key"],
-            item["food_name"],
-            qty,
-            0,  # مبلغ بعداً
-            0,  # قاشق بعداً
-            None,
-            st["delivery_day"],
-            None
-        )
-
-        st["order_no"] = order_no
-
         st.pop("current_item")
 
         st["food_total"] = sum(i["food_total"] for i in st["items"])
