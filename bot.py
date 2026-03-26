@@ -643,15 +643,22 @@ def callbacks(update: Update, context: CallbackContext):
             )
 
             # 👇 این قسمت جدید (برای ادمین)
+            # ساخت متن غذاها 👇
+            foods_text = "\n".join(
+                f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
+                for i in st["items"]
+            )
+
+            # بعدش پیام ادمین 👇
             context.bot.send_message(
                 ADMIN_CHAT_ID,
                 f"⚠️ پرداخت نامشخص\n\n"
                 f"👤 کاربر: {uid}\n"
-                f"💶 مبلغ: €{st.get('total')}\n"
+                f"💰 مبلغ: €{st.get('total')}\n"
                 f"📅 روز: {st.get('delivery_day')}\n"
                 f"⏰ بازه: {st.get('delivery_slot')}\n\n"
-                f"🧾 آیتم‌ها:\n{foods_text}\n"
-                "❗ کاربر بعد از ۵ دقیقه دکمه پرداخت را زده\n"
+                f"🍽 آیتم‌ها:\n{foods_text}\n\n"
+                "❗ کاربر بعد از ۵ دقیقه پرداخت را زده\n"
                 "👉 احتمال دارد پرداخت انجام شده باشد"
             )
 
