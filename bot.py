@@ -633,12 +633,29 @@ def callbacks(update: Update, context: CallbackContext):
 
         # اگر بیشتر از ۵ دقیقه گذشته بود
         if datetime.now(TIMEZONE) - created_at > timedelta(minutes=5):
-            reset_user(uid)
             q.answer("⏰ زمان پرداخت تمام شد", show_alert=True)
+
             context.bot.send_message(
                 uid,
-                "❌ زمان پرداخت شما (۵ دقیقه) تمام شد.\n\nلطفاً دوباره سفارش ثبت کنید 🙏"
+                "⏰ زمان پرداخت شما تمام شد.\n\n"
+                "❗ اگر پرداخت انجام داده‌اید، مبلغ شما تا دقایقی دیگر بازگردانده می‌شود.\n"
+                "📩 در صورت نیاز با پشتیبانی تماس بگیرید."
             )
+
+            # 👇 این قسمت جدید (برای ادمین)
+            context.bot.send_message(
+                ADMIN_CHAT_ID,
+                f"⚠️ پرداخت نامشخص\n\n"
+                f"👤 کاربر: {uid}\n"
+                f"💶 مبلغ: €{st.get('total')}\n"
+                f"📅 روز: {st.get('delivery_day')}\n"
+                f"⏰ بازه: {st.get('delivery_slot')}\n\n"
+                f"🧾 آیتم‌ها:\n{foods_text}\n"
+                "❗ کاربر بعد از ۵ دقیقه دکمه پرداخت را زده\n"
+                "👉 احتمال دارد پرداخت انجام شده باشد"
+            )
+
+            reset_user(uid)
             return
 
         # جلوگیری از دابل کلیک
