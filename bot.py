@@ -630,7 +630,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         from datetime import datetime, timedelta
 
-        created_at = datetime.strptime(created_str, "%Y-%m-%d %H:%M")
+        created_at = datetime.strptime(created_str, "%Y-%m-%d %H:%M").replace(tzinfo=TIMEZONE)
 
         # اگر بیشتر از ۵ دقیقه گذشته بود
         if datetime.now(TIMEZONE) - created_at > timedelta(minutes=5):
