@@ -838,6 +838,12 @@ def callbacks(update: Update, context: CallbackContext):
             return
             
         _, action, order_no = q.data.split("_")
+        order = orders_runtime.get(order_no)
+
+        if not order:
+            q.answer("❌ اطلاعات سفارش پیدا نشد", show_alert=True)
+            return
+        
 
         cur.execute("""
             SELECT user_id, delivery_day, delivery_slot
