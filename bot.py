@@ -3,7 +3,6 @@ import os
 import time
 import sqlite3
 import uuid
-from datetime import datetime
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 
@@ -515,6 +514,7 @@ def start(update: Update, context: CallbackContext):
 
 # ---------- CALLBACK HANDLER ----------
 def callbacks(update: Update, context: CallbackContext):
+    expire_pending_orders()
     q = update.callback_query
     uid = q.from_user.id
     q.answer()
@@ -700,6 +700,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         if not success:
             context.bot.send_message(uid, result)
+            reset_user(uid)
             return
 
         # ✅ فقط بعد از موفقیت
@@ -830,14 +831,26 @@ def callbacks(update: Update, context: CallbackContext):
     
     # ---------------- ADMIN APPROVAL ----------------
     if q.data.startswith("admin_"):
-        _, action, order_no = q.data.split("_")
-        order = orders_runtime.get(order_no)
 
-        if not order:
-            q.answer("❌ اطلاعات سفارش پیدا نشد", show_alert=True)
+        # فقط ادمین
+        if uid != ADMIN_CHAT_ID:
+            q.answer("⛔ دسترسی ندارید", show_alert=True)
             return
 
-        user_id = order["user_id"]
+         _, action, order_no = q.data.split("_")
+
+        cur.execute("""
+            SELECT user_id, delivery_day, delivery_slot
+            FROM orders
+            WHERE order_no = ?
+        """, (order_no,))
+        row = cur.fetchone()
+
+        if not row:
+            q.answer("❌ سفارش پیدا نشد", show_alert=True)
+            return
+
+        user_id = row[0]
 
         if action == "ok":
             cur.execute("""
@@ -885,6 +898,7 @@ def callbacks(update: Update, context: CallbackContext):
 
             # ✅ فقط اینجا پاک کن
             orders_runtime.pop(order_no, None)
+            q.answer("✅ انجام شد")
 
         else:
             user_state[uid] = {
