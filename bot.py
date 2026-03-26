@@ -5,6 +5,7 @@ import sqlite3
 import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 
 from telegram import (
     Bot,
@@ -628,8 +629,6 @@ def callbacks(update: Update, context: CallbackContext):
             context.bot.send_message(uid, "❌ خطا در سفارش. لطفاً دوباره تلاش کنید.")
             return
 
-        from datetime import datetime, timedelta
-
         created_at = datetime.strptime(created_str, "%Y-%m-%d %H:%M").replace(tzinfo=TIMEZONE)
 
         # اگر بیشتر از ۵ دقیقه گذشته بود
@@ -821,15 +820,10 @@ def callbacks(update: Update, context: CallbackContext):
                 UPDATE orders
                 SET status = 'approved',
                     payment_checked_at = ?
-                WHERE user_id = ?
-                  AND delivery_day = ?
-                  AND delivery_slot = ?
-                  AND status = 'pending'
+                WHERE order_no = ?
             """, (
                 datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
-                order["user_id"],
-                order["delivery_day"],
-                order["delivery_slot"]
+                order_no
             ))
             conn.commit()
 
