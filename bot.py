@@ -2,6 +2,7 @@ from flask import Flask, request
 import os
 import time
 import sqlite3
+import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -105,7 +106,7 @@ def get_remaining_stock(food_key, delivery_day):
 
 def get_slot_count(delivery_day, slot):
     cur.execute("""
-        SELECT COUNT(*) FROM orders
+        SELECT COUNT(DISTINCT order_no) FROM orders
         WHERE delivery_day = ?
           AND delivery_slot = ?
           AND status IN ('pending','approved')
@@ -190,7 +191,7 @@ def create_order(user_id, food_key, food_name, qty, total, cutlery_qty, payment_
     if order_no is None:
         today = datetime.now(TIMEZONE).strftime("%Y%m%d")
         rand = randint(100, 999)
-        order_no = f"CH-{today}-{rand}"
+        order_no = f"CH-{today}-{uuid.uuid4().hex[:6]}"
 
     cur.execute("""
         INSERT INTO orders
@@ -245,7 +246,7 @@ def safe_create_order(user_id, items, delivery_day, delivery_slot, total, paymen
 
         # 2. چک ظرفیت تایم
         cur.execute("""
-            SELECT COUNT(*) FROM orders
+            SELECT COUNT(DISTINCT order_no) FROM orders
             WHERE delivery_day = ?
             AND delivery_slot = ?
             AND status IN ('pending','approved')
@@ -261,7 +262,7 @@ def safe_create_order(user_id, items, delivery_day, delivery_slot, total, paymen
         from random import randint
         today = datetime.now(TIMEZONE).strftime("%Y%m%d")
         rand = randint(100, 999)
-        order_no = f"CH-{today}-{rand}"
+        order_no = f"CH-{today}-{uuid.uuid4().hex[:6]}"
 
         for item in items:
             cur.execute("""
