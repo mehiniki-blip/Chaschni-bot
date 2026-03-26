@@ -836,8 +836,8 @@ def callbacks(update: Update, context: CallbackContext):
         if uid != ADMIN_CHAT_ID:
             q.answer("⛔ دسترسی ندارید", show_alert=True)
             return
-
-         _, action, order_no = q.data.split("_")
+            
+        _, action, order_no = q.data.split("_")
 
         cur.execute("""
             SELECT user_id, delivery_day, delivery_slot
