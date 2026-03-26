@@ -295,7 +295,7 @@ def expire_pending_orders():
         UPDATE orders
         SET status = 'expired'
         WHERE status = 'pending'
-        AND datetime(created_at) < datetime('now', '-10 minutes')
+        AND datetime(created_at) < datetime('now','-5 minutes','localtime')
     """)
     conn.commit()
 
@@ -615,8 +615,31 @@ def callbacks(update: Update, context: CallbackContext):
     if q.data == "paid_paypal":
         st = user_state.get(uid)
 
+        # اگر state وجود نداشت
         if not st:
             q.answer("خطا در سفارش", show_alert=True)
+            return
+
+        # اگر زمان ذخیره نشده بود
+        created_str = st.get("created_at")
+
+        if not created_str:
+            reset_user(uid)
+            context.bot.send_message(uid, "❌ خطا در سفارش. لطفاً دوباره تلاش کنید.")
+            return
+
+        from datetime import datetime, timedelta
+
+        created_at = datetime.strptime(created_str, "%Y-%m-%d %H:%M")
+
+        # اگر بیشتر از ۵ دقیقه گذشته بود
+        if datetime.now(TIMEZONE) - created_at > timedelta(minutes=5):
+            reset_user(uid)
+            q.answer("⏰ زمان پرداخت تمام شد", show_alert=True)
+            context.bot.send_message(
+                uid,
+                "❌ زمان پرداخت شما (۵ دقیقه) تمام شد.\n\nلطفاً دوباره سفارش ثبت کنید 🙏"
+            )
             return
 
         # جلوگیری از دابل کلیک
@@ -712,6 +735,7 @@ def callbacks(update: Update, context: CallbackContext):
             f"💶 مبلغ کل: €{st['total']}",
             reply_markup=admin_keyboard(order_no)
         )
+        reset_user(uid)
         return
 
     # ---------------- DELIVERY SLOT ----------------
@@ -738,8 +762,11 @@ def callbacks(update: Update, context: CallbackContext):
             f"✅ بازه تحویل انتخاب شد:\n"
             f"⏰ {start} – {end}\n\n"
             f"💰 مبلغ نهایی: €{total}\n\n"
+            "⏳ شما فقط *۵ دقیقه* برای انجام پرداخت زمان دارید.\n"
+            "❗ بعد از آن سفارش شما لغو خواهد شد.\n\n"
             "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
-            "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
+            "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید.",
+            parse_mode="Markdown"
         )
 
         context.bot.send_message(
@@ -1141,7 +1168,8 @@ def handle_text(update: Update, context: CallbackContext):
         user_state[uid] = {
             "step": "qty",
             "items": [],
-            "delivery_day": delivery_day
+            "delivery_day": delivery_day,
+            "created_at": datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
         }
         target = get_target_delivery_day()
 
