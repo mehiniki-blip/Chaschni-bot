@@ -52,7 +52,7 @@ LOCAL_STREETS_30165 = [
 ]
 
 PICKUP_ADDRESS_FULL = "Tannenbergallee 6, 30163 Hannover"
-PICKUP_ADDRESS_SHORT = "Tannenbergallee (Hannover)"
+PICKUP_ADDRESS_SHORT = "List 30163 (Hannover)"
 
 # ---------- DB ----------
 conn = sqlite3.connect("orders.db", check_same_thread=False)
