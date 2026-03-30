@@ -361,6 +361,10 @@ def food_keyboard():
 
         # اگر موجودی تموم شده → اصلاً نمایش نده
         if remaining <= 0:
+            label = f"{f['name']} — ❌ ناموجود"
+            buttons.append([
+                InlineKeyboardButton(label, callback_data="noop")
+            ])
             continue
 
         label = f"{f['name']} — {f['price']}€"
@@ -797,7 +801,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         context.bot.send_message(
             chat_id=uid,
-            text="لینک پرداخت:",
+            text=f"💳 لینک پرداخت (€{total}):",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
                 [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
@@ -1020,7 +1024,8 @@ def handle_text(update: Update, context: CallbackContext):
 
         reset_user(uid)
         return
-        # ---------- ANTI-SPAM CHECK ----------
+        
+    # ---------- ANTI-SPAM CHECK ----------
     now = time.time()
 
     # اگر کاربر سابقه ندارد → مقدار اولیه بساز
