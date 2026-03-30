@@ -468,6 +468,7 @@ def send_welcome(bot, chat_id, is_admin=False):
                 [
                      ["📊 ریپورت"],
                      ["📊 گزارش فردا"],
+                     ["📊 تحلیل"], 
                      ["📣 ارسال یادآوری تحویل"],
                      ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
                      ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
@@ -1073,7 +1074,7 @@ def handle_text(update: Update, context: CallbackContext):
         update.message.reply_text("⚪ حالت تست غیرفعال شد")
         return
 
-# --- ADMIN: ENABLE TEST MODE ---
+    # --- ADMIN: ENABLE TEST MODE ---
     if uid == ADMIN_CHAT_ID and "تست" in text and "فعال" in text:
         TEST_MODE = True
         update.message.reply_text("🔵 حالت تست فعال شد")
@@ -1152,6 +1153,64 @@ def handle_text(update: Update, context: CallbackContext):
         update.message.reply_text(msg)
         return
     
+    # --- ANALYTICS (ADMIN ONLY) ---
+    if uid == ADMIN_CHAT_ID and text == "📊 تحلیل":
+
+        # 1. غذای پرفروش
+        cur.execute("""
+            SELECT food_name, SUM(qty)
+            FROM orders
+            WHERE status = 'approved'
+            GROUP BY food_name
+            ORDER BY SUM(qty) DESC
+        """)
+        foods = cur.fetchall()
+
+        food_text = "\n".join(
+            f"{name} → {qty}" for name, qty in foods
+        ) or "ندارد"
+
+        # 2. تایم محبوب
+        cur.execute("""
+            SELECT delivery_slot, COUNT(*)
+            FROM orders
+            WHERE status = 'approved'
+            GROUP BY delivery_slot
+            ORDER BY COUNT(*) DESC
+        """)
+        slots = cur.fetchall()
+
+        slot_text = "\n".join(
+            f"{slot} → {count}" for slot, count in slots
+        ) or "ندارد"
+
+        # 3. روز پرفروش
+        cur.execute("""
+            SELECT delivery_day, COUNT(*)
+            FROM orders
+            WHERE status = 'approved'
+            GROUP BY delivery_day
+        """)
+        days = cur.fetchall()
+
+        day_text = "\n".join(
+            f"{day} → {count}" for day, count in days
+        ) or "ندارد"
+
+        # ارسال گزارش
+        msg = (
+            "📊 تحلیل فروش:\n\n"
+            "🍽 غذای پرفروش:\n"
+            f"{food_text}\n\n"
+            "⏰ تایم‌های محبوب:\n"
+            f"{slot_text}\n\n"
+            "📅 روزها:\n"
+            f"{day_text}"
+        )
+
+        update.message.reply_text(msg)
+        return
+
     
     # --- ADMIN: SEND DELIVERY REMINDER ---
     if uid == ADMIN_CHAT_ID and text == "📣 ارسال یادآوری تحویل":
