@@ -803,7 +803,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         context.bot.send_message(
             chat_id=uid,
-            text="💳 پرداخت:",
+            text="لینک پرداخت:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
                 [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
