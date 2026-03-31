@@ -737,7 +737,9 @@ def callbacks(update: Update, context: CallbackContext):
             f"📅 روز تحویل: {st['delivery_day']}\n"
             f"⏰ بازه تحویل: {st['delivery_slot']}\n"
             f"💶 مبلغ کل: €{st['total']}\n\n"
-            "⏳ سفارش شما در انتظار تأیید ادمین است."
+            f"⏳ سفارش شما ثبت شد و در انتظار تأیید است.\n\n"
+            f"🕒 سفارش‌ها معمولاً در مدت کوتاهی تأیید می‌شوند.\n"
+            f"⚠️در صورتی که سفارش خارج از ساعات کاری ثبت شده باشد، تأیید آن صبح روز بعد انجام خواهد شد 🙏"
         )
 
         # پیام ادمین
@@ -801,7 +803,6 @@ def callbacks(update: Update, context: CallbackContext):
 
         context.bot.send_message(
             chat_id=uid,
-            text=f"💳 لینک پرداخت (€{total}):",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
                 [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
