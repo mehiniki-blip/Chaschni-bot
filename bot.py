@@ -1255,7 +1255,7 @@ def handle_text(update: Update, context: CallbackContext):
             
         if not is_working_time():
             update.message.reply_text(
-            "📦 سفارش‌گیری امروز بسته است.\n\n"
+            "📦 سفارش‌گیری بسته است.\n\n"
             "🗓 لطفاً در روز و ساعت مجاز پیش‌سفارش اقدام فرمایید."
             )
             return
