@@ -309,8 +309,8 @@ def get_foods_for_target_day():
             "salad": {"name": "🥗 پروتینو (سالاد ماکارونی) ", "price": 5},
             "ash": {"name": "🍛 قیمه با برنج", "price": 8.5},
             "ghorme": {"name": "🍛🌿 قرمه سبزی با برنج", "price": 8.5},
-            "gheyme_to_go": {"name": "🥡 قیمه To Go", "price": 4},
-            "ghorme_to_go": {"name": "🥡 قرمه To Go", "price": 4},
+            "gheyme_to_go": {"name": "🥡 قیمه (To Go)\u200f", "price": 4},
+            "ghorme_to_go": {"name": "🥡 قرمه (To Go)\u200f", "price": 4},
         }
 
     if target == "thursday":
@@ -319,8 +319,8 @@ def get_foods_for_target_day():
             "salad": {"name": "🥗 پروتینو (سالاد ماکارونی)", "price": 5},
             "ash": {"name": "🍛 قیمه با برنج", "price": 8.5},
             "zereshk": {"name": "🍛🌿 قرمه سبزی با برنج", "price": 8.5},
-            "gheyme_to_go": {"name": "🥡 قیمه To Go", "price": 4},
-            "ghorme_to_go": {"name": "🥡 قرمه To Go", "price": 4},
+            "gheyme_to_go": {"name": "🥡 قیمه (To Go)\u200f", "price": 4},
+            "ghorme_to_go": {"name": "🥡 قرمه (To Go)\u200f", "price": 4},
         }
 
     return {}
