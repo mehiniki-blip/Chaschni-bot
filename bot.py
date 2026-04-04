@@ -88,6 +88,25 @@ CREATE TABLE IF NOT EXISTS orders (
 """)
 conn.commit()
 
+# ---------- USERS TABLE ----------
+cur.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY
+)
+""")
+
+# ---------- LOGS TABLE ----------
+cur.execute("""
+CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    action TEXT,
+    created_at TEXT
+)
+""")
+
+conn.commit()
+
 # ---------- UTILITY ----------
 user_state = {}
 orders_runtime = {}
@@ -476,7 +495,9 @@ def send_welcome(bot, chat_id, is_admin=False):
                 [
                      ["📊 ریپورت"],
                      ["📊 گزارش فردا"],
-                     ["📊 تحلیل"], 
+                     ["📊 تحلیل"],
+                     ["📊 تحلیل رفتار"],
+                     ["📣 ارسال پیام"],
                      ["📣 ارسال یادآوری تحویل"],
                      ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
                      ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
@@ -487,6 +508,17 @@ def send_welcome(bot, chat_id, is_admin=False):
 
 def start(update: Update, context: CallbackContext):
     uid = update.effective_user.id
+
+    # ذخیره کاربر
+    cur.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (uid,))
+    conn.commit()
+
+    # لاگ ورود
+    cur.execute(
+        "INSERT INTO logs (user_id, action, created_at) VALUES (?, ?, ?)",
+        (uid, "start", datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"))
+    )
+    conn.commit()
 
     if not is_user_member(context.bot, uid):
         update.message.reply_text(
@@ -513,6 +545,8 @@ def start(update: Update, context: CallbackContext):
                      ["📊 ریپورت"],
                      ["📊 گزارش فردا"],
                      ["📊 تحلیل"],
+                     ["📊 تحلیل رفتار"],
+                     ["📣 ارسال پیام"],
                      ["📣 ارسال یادآوری تحویل"],
                      ["⚠️ پیام اضطراری", "🟢 حذف پیام اضطراری"],
                      ["🔵 فعال‌کردن تست", "⚪ غیرفعال‌کردن تست"]
@@ -536,6 +570,12 @@ def callbacks(update: Update, context: CallbackContext):
         key = q.data.replace("food_", "")
         foods = get_foods_for_target_day()   # ✅ این خط اصلاح شد
 
+        cur.execute(
+            "INSERT INTO logs (user_id, action, created_at) VALUES (?, ?, ?)",
+            (uid, "select_food", datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"))
+        )
+        conn.commit()
+        
         if key not in foods:
             q.answer("این غذا در منوی امروز نیست", show_alert=True)
             return
@@ -625,6 +665,7 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- PAYMENT CONFIRM ----------------
     if q.data == "paid_paypal":
         st = user_state.get(uid)
+        
 
         # اگر state وجود نداشت
         if not st:
@@ -712,6 +753,12 @@ def callbacks(update: Update, context: CallbackContext):
             context.bot.send_message(uid, result)
             reset_user(uid)
             return
+            
+        cur.execute(
+            "INSERT INTO logs (user_id, action, created_at) VALUES (?, ?, ?)",
+            (uid, "paid", datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"))
+        )
+        conn.commit()
 
         # ✅ فقط بعد از موفقیت
         st["paid"] = True
@@ -784,6 +831,12 @@ def callbacks(update: Update, context: CallbackContext):
             return
 
         st["delivery_slot"] = slot
+
+        cur.execute(
+            "INSERT INTO logs (user_id, action, created_at) VALUES (?, ?, ?)",
+            (uid, "go_to_payment", datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"))
+        )
+        conn.commit()
 
     # محاسبه مبلغ نهایی
         total_cutlery = sum(
@@ -1031,6 +1084,52 @@ def handle_text(update: Update, context: CallbackContext):
         reset_user(uid)
         return
         
+    # --- ANALYTICS (ADMIN ONLY) ---
+    if uid == ADMIN_CHAT_ID and text == "📊 تحلیل رفتار":
+
+        cur.execute("""
+            SELECT action, COUNT(*) FROM logs
+            GROUP BY action
+        """)
+        rows = cur.fetchall()
+
+        msg = "📊 تحلیل رفتار کاربران:\n\n"
+
+        for action, count in rows:
+            msg += f"{action} → {count}\n"
+
+        update.message.reply_text(msg)
+        return
+
+
+    # --- BROADCAST (ADMIN ONLY) ---
+    if uid == ADMIN_CHAT_ID and text == "📣 ارسال پیام":
+        user_state[uid] = {"step": "broadcast"}
+        update.message.reply_text("✍️ متن پیام رو بفرست:")
+        return
+
+
+    if st and st.get("step") == "broadcast":
+
+        msg = text
+
+        cur.execute("SELECT user_id FROM users")
+        users = cur.fetchall()
+
+        sent = 0
+
+        for u in users:
+            try:
+                context.bot.send_message(u[0], msg)
+                sent += 1
+            except:
+                pass
+
+        update.message.reply_text(f"✅ پیام به {sent} نفر ارسال شد")
+
+        reset_user(uid)
+        return
+    
     # ---------- ANTI-SPAM CHECK ----------
     now = time.time()
 
@@ -1249,6 +1348,11 @@ def handle_text(update: Update, context: CallbackContext):
        
     # MENU
     if text == "🍽 شروع سفارش":
+        cur.execute(
+            "INSERT INTO logs (user_id, action, created_at) VALUES (?, ?, ?)",
+            (uid, "start_order", datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"))
+        )
+        conn.commit()
         
         if not is_user_member(context.bot, uid):
             update.message.reply_text(
