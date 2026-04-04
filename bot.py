@@ -394,7 +394,7 @@ def food_keyboard():
 
         # اگر کمتر از 5 تا مونده → هشدار بده
         if remaining <= 5:
-            label += f"\n⏳ فقط {remaining} عدد باقی مانده"
+            label += f" ⏳ {remaining} باقی"
 
         buttons.append([
             InlineKeyboardButton(label, callback_data=f"food_{k}")
@@ -860,7 +860,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         context.bot.send_message(
             chat_id=uid,
-            text="لینک پرداخت:",
+            text="💳 برای پرداخت روی دکمه زیر بزنید:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
                 [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
