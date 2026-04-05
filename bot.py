@@ -69,6 +69,16 @@ except sqlite3.OperationalError:
     pass  # column already exists
 
 cur.execute("""
+CREATE TABLE IF NOT EXISTS discount_codes (
+    code TEXT PRIMARY KEY,
+    percent INTEGER,
+    max_use INTEGER,
+    used_count INTEGER DEFAULT 0
+)
+""")
+conn.commit()
+
+cur.execute("""
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_no TEXT,
@@ -495,6 +505,7 @@ def send_welcome(bot, chat_id, is_admin=False):
                 [
                      ["📊 ریپورت"],
                      ["📊 گزارش فردا"],
+                     ["🎁 مدیریت تخفیف"],
                      ["📊 تحلیل"],
                      ["📊 تحلیل رفتار"],
                      ["📣 ارسال پیام"],
@@ -748,11 +759,21 @@ def callbacks(update: Update, context: CallbackContext):
             st["total"],
             "PayPal"
         )
-
+        
+        
         if not success:
             context.bot.send_message(uid, result)
             reset_user(uid)
             return
+
+
+        if st.get("discount_code"):
+            cur.execute("""
+                UPDATE discount_codes
+                SET used_count = used_count + 1
+                WHERE code = ?
+            """, (st["discount_code"],))
+            conn.commit()
             
         cur.execute(
             "INSERT INTO logs (user_id, action, created_at) VALUES (?, ?, ?)",
@@ -843,8 +864,14 @@ def callbacks(update: Update, context: CallbackContext):
             i.get("cutlery_qty", 0) for i in st["items"]
         )
 
+        total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
+
         total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
-        st["total"] = total
+
+        discount = st.get("discount", 0)
+        total = total - (total * discount / 100)
+
+        st["total"] = round(total, 2)
         st["step"] = "pay"
 
         q.edit_message_text(
@@ -1128,6 +1155,89 @@ def handle_text(update: Update, context: CallbackContext):
         update.message.reply_text(f"✅ پیام به {sent} نفر ارسال شد")
 
         reset_user(uid)
+        return
+    
+    if uid == ADMIN_CHAT_ID and text == "🎁 مدیریت تخفیف":
+        user_state[uid] = {"step": "discount_code_create"}
+        update.message.reply_text("✍️ کد تخفیف را وارد کنید:")
+        return
+    
+    if st and st.get("step") == "discount_code_create":
+        st["code"] = text.upper()
+        st["step"] = "discount_percent"
+        update.message.reply_text("📊 درصد تخفیف (مثلاً 15):")
+        return
+    
+    if st and st.get("step") == "discount_percent":
+        if not text.isdigit():
+            update.message.reply_text("❗ فقط عدد")
+            return
+
+        st["percent"] = int(text)
+        st["step"] = "discount_limit"
+        update.message.reply_text("🔢 تعداد استفاده:")
+        return
+    
+
+    if st and st.get("step") == "discount_limit":
+        if not text.isdigit():
+            update.message.reply_text("❗ فقط عدد")
+            return
+
+        cur.execute("""
+            INSERT OR REPLACE INTO discount_codes (code, percent, max_use, used_count)
+            VALUES (?, ?, ?, 0)
+        """, (
+            st["code"],
+            st["percent"],
+            int(text)
+        ))
+        conn.commit()
+
+        update.message.reply_text("✅ کد تخفیف ساخته شد")
+
+        reset_user(uid)
+        return
+    
+    if st and st.get("step") == "discount_code":
+        code = text.strip().upper()
+
+        if code in ["رد", "❌ ندارم"]:
+            st["discount"] = 0
+        else:
+            cur.execute("""
+                SELECT percent, max_use, used_count
+                FROM discount_codes
+                WHERE code=?
+            """, (code,))
+
+            row = cur.fetchone()
+
+            if not row:
+                update.message.reply_text("❌ کد نامعتبر")
+                return
+
+            percent, max_use, used = row
+
+            if used >= max_use:
+                update.message.reply_text("⛔ کد غیرفعال")
+                return
+
+            st["discount"] = percent
+            st["discount_code"] = code
+
+            update.message.reply_text(f"✅ {percent}% تخفیف اعمال شد")
+
+        st["step"] = "delivery_slot"
+        update.message.reply_text(
+            "⏰ بازه تحویل را انتخاب کنید:",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+        update.message.reply_text(
+            f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
+            reply_markup=delivery_slot_keyboard(st["delivery_day"])
+        )
         return
     
     # ---------- ANTI-SPAM CHECK ----------
@@ -1606,20 +1716,39 @@ def handle_text(update: Update, context: CallbackContext):
                 reply_markup=delivery_slot_keyboard(st["delivery_day"])
             )
             return
-    # ADDRESS
+   # ADDRESS
     if st["step"] == "address":
         st["address"] = text
-        st["step"] = "delivery_slot"
 
+        # تنظیم روز تحویل
         target = get_target_delivery_day()
         if target == "monday":
             st["delivery_day"] = "دوشنبه"
         elif target == "thursday":
             st["delivery_day"] = "پنج‌شنبه"
-        else:
-            update.message.reply_text("امکان ثبت سفارش در حال حاضر وجود ندارد.")
-            reset_user(uid)
+
+        cur.execute("""
+        SELECT 1 FROM discount_codes
+        WHERE used_count < max_use
+        LIMIT 1
+        """)
+
+        has_discount = cur.fetchone()
+
+        # ✅ اگر تخفیف هست
+        if has_discount:
+            st["step"] = "discount_code"
+            update.message.reply_text(
+                "🎁 اگر کد تخفیف دارید وارد کنید\nدر غیر این صورت از گزینه زیر استفاده کنید 👇",
+                reply_markup=ReplyKeyboardMarkup(
+                    [["❌ ندارم"]],
+                    resize_keyboard=True
+                )
+            )
             return
+
+        # ✅ اگر تخفیف نیست → ادامه عادی
+        st["step"] = "delivery_slot"
 
         update.message.reply_text(
             f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
