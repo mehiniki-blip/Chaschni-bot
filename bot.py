@@ -850,10 +850,10 @@ def callbacks(update: Update, context: CallbackContext):
             i.get("cutlery_qty", 0) for i in st["items"]
         )
 
-        discount_text = ""
+       discount_text = ""
         if st.get("discount", 0) > 0:
             discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st['discount_amount']})"
-        
+
         context.bot.send_message(
             ADMIN_CHAT_ID,
             f"🆕 سفارش جدید\n\n"
@@ -866,7 +866,7 @@ def callbacks(update: Update, context: CallbackContext):
             f"⏰ بازه تحویل: {st['delivery_slot']}\n\n"
             f"{admin_foods_text}\n"
             f"🥄 مجموع قاشق/چنگال: {admin_total_cutlery}\n"
-            f"💶 مبلغ کل: €{st['total']}",
+            f"💶 مبلغ کل: €{st['total']}"
             f"{discount_text}",
             reply_markup=admin_keyboard(order_no)
         )
@@ -889,28 +889,6 @@ def callbacks(update: Update, context: CallbackContext):
             (uid, "go_to_payment", datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"))
         )
         conn.commit()
-
-
-        cur.execute("""
-        SELECT 1 FROM discount_codes
-        WHERE used_count < max_use
-        LIMIT 1
-        """)
-
-        has_discount = cur.fetchone()
-
-        if has_discount:
-            st["step"] = "discount_code"
-
-            context.bot.send_message(
-                uid,
-                "🎁 اگر کد تخفیف دارید وارد کنید\nدر غیر این صورت از گزینه زیر استفاده کنید 👇",
-                reply_markup=ReplyKeyboardMarkup(
-                    [["❌ ندارم"]],
-                    resize_keyboard=True
-                )
-            )
-            return
 
     # محاسبه مبلغ نهایی
         total_cutlery = sum(
@@ -1224,12 +1202,12 @@ def handle_text(update: Update, context: CallbackContext):
     if st and st.get("step") == "delete_discount":
         code = text.upper()
 
-       cur.execute("SELECT 1 FROM discount_codes WHERE code = ?", (code,))
+        cur.execute("SELECT 1 FROM discount_codes WHERE code = ?", (code,))
         exists = cur.fetchone()
 
         if not exists:
             update.message.reply_text("❌ چنین کدی وجود ندارد")
-        return
+            return
 
         cur.execute("DELETE FROM discount_codes WHERE code = ?", (code,))
         conn.commit()
@@ -1280,13 +1258,13 @@ def handle_text(update: Update, context: CallbackContext):
 
         if code in ["رد", "❌ ندارم"]:
             st["discount"] = 0
+            st["discount_code"] = None
         else:
             cur.execute("""
                 SELECT percent, max_use, used_count
                 FROM discount_codes
                 WHERE code=?
             """, (code,))
-
             row = cur.fetchone()
 
             if not row:
@@ -1295,18 +1273,16 @@ def handle_text(update: Update, context: CallbackContext):
 
             percent, max_use, used = row
 
-            # ❌ اگر قبلاً استفاده کرده
+            # چک استفاده قبلی
             cur.execute("""
             SELECT 1 FROM discount_usage
             WHERE user_id = ? AND code = ?
             """, (uid, code))
 
-            already_used = cur.fetchone()
-
-            if already_used:
+            if cur.fetchone():
                 update.message.reply_text("⛔ شما قبلاً از این کد استفاده کرده‌اید")
                 return
-            
+
             if used >= max_use:
                 update.message.reply_text("⛔ کد غیرفعال")
                 return
@@ -1316,15 +1292,33 @@ def handle_text(update: Update, context: CallbackContext):
 
             update.message.reply_text(f"✅ {percent}% تخفیف اعمال شد")
 
-        st["step"] = "delivery_slot"
-        update.message.reply_text(
-            "⏰ بازه تحویل را انتخاب کنید:",
-            reply_markup=ReplyKeyboardRemove()
-        )
+        # ✅ محاسبه مبلغ (خیلی مهم)
+        total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
+        total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
+
+        discount = st.get("discount", 0)
+        discount_amount = total * discount / 100
+        total = total - discount_amount
+
+        st["discount_amount"] = round(discount_amount, 2)
+        st["total"] = round(total, 2)
+
+        # رفتن به پرداخت
+        st["step"] = "pay"
 
         update.message.reply_text(
-            f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
-            reply_markup=delivery_slot_keyboard(st["delivery_day"])
+            f"💰 مبلغ نهایی: €{st['total']}\n"
+            f"🎁 تخفیف: {discount}% (-€{st['discount_amount']})\n\n"
+            "💳 برای پرداخت ادامه دهید:"
+        )
+
+        context.bot.send_message(
+            chat_id=uid,
+            text="💳 پرداخت:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
+                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+            ])
         )
         return
                         
