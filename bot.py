@@ -117,6 +117,16 @@ CREATE TABLE IF NOT EXISTS logs (
 
 conn.commit()
 
+# ---------- DISCOUNT USAGE ----------
+cur.execute("""
+CREATE TABLE IF NOT EXISTS discount_usage (
+    user_id INTEGER,
+    code TEXT,
+    PRIMARY KEY (user_id, code)
+)
+""")
+conn.commit()
+
 # ---------- UTILITY ----------
 user_state = {}
 orders_runtime = {}
@@ -506,6 +516,7 @@ def send_welcome(bot, chat_id, is_admin=False):
                      ["📊 ریپورت"],
                      ["📊 گزارش فردا"],
                      ["🎁 مدیریت تخفیف"],
+                     ["❌ حذف کد تخفیف"],
                      ["📊 تحلیل"],
                      ["📊 تحلیل رفتار"],
                      ["📣 ارسال پیام"],
@@ -555,6 +566,8 @@ def start(update: Update, context: CallbackContext):
                 [
                      ["📊 ریپورت"],
                      ["📊 گزارش فردا"],
+                     ["🎁 مدیریت تخفیف"],
+                     ["❌ حذف کد تخفیف"],
                      ["📊 تحلیل"],
                      ["📊 تحلیل رفتار"],
                      ["📣 ارسال پیام"],
@@ -768,11 +781,19 @@ def callbacks(update: Update, context: CallbackContext):
 
 
         if st.get("discount_code"):
+            # افزایش تعداد استفاده
             cur.execute("""
                 UPDATE discount_codes
                 SET used_count = used_count + 1
                 WHERE code = ?
             """, (st["discount_code"],))
+    
+            # ثبت اینکه این کاربر استفاده کرده
+            cur.execute("""
+                INSERT OR IGNORE INTO discount_usage (user_id, code)
+                VALUES (?, ?)
+            """, (uid, st["discount_code"]))
+
             conn.commit()
             
         cur.execute(
@@ -1161,6 +1182,22 @@ def handle_text(update: Update, context: CallbackContext):
         user_state[uid] = {"step": "discount_code_create"}
         update.message.reply_text("✍️ کد تخفیف را وارد کنید:")
         return
+
+    # حذف کد تخفیف
+    if uid == ADMIN_CHAT_ID and text == "❌ حذف کد تخفیف":
+        user_state[uid] = {"step": "delete_discount"}
+        update.message.reply_text("🗑 کد موردنظر را وارد کنید:")
+        return
+
+    if st and st.get("step") == "delete_discount":
+        code = text.upper()
+
+        cur.execute("DELETE FROM discount_codes WHERE code = ?", (code,))
+        conn.commit()
+
+        update.message.reply_text("✅ کد حذف شد")
+        reset_user(uid)
+        return
     
     if st and st.get("step") == "discount_code_create":
         st["code"] = text.upper()
@@ -1219,6 +1256,18 @@ def handle_text(update: Update, context: CallbackContext):
 
             percent, max_use, used = row
 
+            # ❌ اگر قبلاً استفاده کرده
+            cur.execute("""
+            SELECT 1 FROM discount_usage
+            WHERE user_id = ? AND code = ?
+            """, (uid, code))
+
+            already_used = cur.fetchone()
+
+            if already_used:
+                update.message.reply_text("⛔ شما قبلاً از این کد استفاده کرده‌اید")
+                return
+            
             if used >= max_use:
                 update.message.reply_text("⛔ کد غیرفعال")
                 return
@@ -1239,6 +1288,7 @@ def handle_text(update: Update, context: CallbackContext):
             reply_markup=delivery_slot_keyboard(st["delivery_day"])
         )
         return
+                        
     
     # ---------- ANTI-SPAM CHECK ----------
     now = time.time()
