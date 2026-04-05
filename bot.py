@@ -850,7 +850,7 @@ def callbacks(update: Update, context: CallbackContext):
             i.get("cutlery_qty", 0) for i in st["items"]
         )
 
-       discount_text = ""
+        discount_text = ""
         if st.get("discount", 0) > 0:
             discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st['discount_amount']})"
 
