@@ -821,6 +821,10 @@ def callbacks(update: Update, context: CallbackContext):
             i.get("cutlery_qty", 0) for i in st["items"]
         )
 
+        discount_text = ""
+        if st.get("discount", 0) > 0:
+            discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st['discount_amount']})"
+        
         context.bot.send_message(
             uid,
             f"💳 پرداخت ثبت شد.\n"
@@ -830,6 +834,7 @@ def callbacks(update: Update, context: CallbackContext):
             f"📅 روز تحویل: {st['delivery_day']}\n"
             f"⏰ بازه تحویل: {st['delivery_slot']}\n"
             f"💶 مبلغ کل: €{st['total']}\n\n"
+            f"{discount_text}\n"
             f"⏳ سفارش شما ثبت شد و در انتظار تأیید است.\n\n"
             f"🕒 سفارش‌ها معمولاً در مدت کوتاهی تأیید می‌شوند.\n"
             f"⚠️در صورتی که سفارش خارج از ساعات کاری ثبت شده باشد، تأیید آن صبح روز بعد انجام خواهد شد 🙏"
@@ -845,6 +850,10 @@ def callbacks(update: Update, context: CallbackContext):
             i.get("cutlery_qty", 0) for i in st["items"]
         )
 
+        discount_text = ""
+        if st.get("discount", 0) > 0:
+            discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st['discount_amount']})"
+        
         context.bot.send_message(
             ADMIN_CHAT_ID,
             f"🆕 سفارش جدید\n\n"
@@ -858,6 +867,7 @@ def callbacks(update: Update, context: CallbackContext):
             f"{admin_foods_text}\n"
             f"🥄 مجموع قاشق/چنگال: {admin_total_cutlery}\n"
             f"💶 مبلغ کل: €{st['total']}",
+            f"{discount_text}",
             reply_markup=admin_keyboard(order_no)
         )
         reset_user(uid)
@@ -879,6 +889,28 @@ def callbacks(update: Update, context: CallbackContext):
             (uid, "go_to_payment", datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"))
         )
         conn.commit()
+
+
+        cur.execute("""
+        SELECT 1 FROM discount_codes
+        WHERE used_count < max_use
+        LIMIT 1
+        """)
+
+        has_discount = cur.fetchone()
+
+        if has_discount:
+            st["step"] = "discount_code"
+
+            context.bot.send_message(
+                uid,
+                "🎁 اگر کد تخفیف دارید وارد کنید\nدر غیر این صورت از گزینه زیر استفاده کنید 👇",
+                reply_markup=ReplyKeyboardMarkup(
+                    [["❌ ندارم"]],
+                    resize_keyboard=True
+                )
+            )
+            return
 
     # محاسبه مبلغ نهایی
         total_cutlery = sum(
@@ -1191,6 +1223,13 @@ def handle_text(update: Update, context: CallbackContext):
 
     if st and st.get("step") == "delete_discount":
         code = text.upper()
+
+       cur.execute("SELECT 1 FROM discount_codes WHERE code = ?", (code,))
+        exists = cur.fetchone()
+
+        if not exists:
+            update.message.reply_text("❌ چنین کدی وجود ندارد")
+        return
 
         cur.execute("DELETE FROM discount_codes WHERE code = ?", (code,))
         conn.commit()
@@ -1769,36 +1808,17 @@ def handle_text(update: Update, context: CallbackContext):
    # ADDRESS
     if st["step"] == "address":
         st["address"] = text
+        st["step"] = "delivery_slot"
 
-        # تنظیم روز تحویل
         target = get_target_delivery_day()
         if target == "monday":
             st["delivery_day"] = "دوشنبه"
         elif target == "thursday":
             st["delivery_day"] = "پنج‌شنبه"
-
-        cur.execute("""
-        SELECT 1 FROM discount_codes
-        WHERE used_count < max_use
-        LIMIT 1
-        """)
-
-        has_discount = cur.fetchone()
-
-        # ✅ اگر تخفیف هست
-        if has_discount:
-            st["step"] = "discount_code"
-            update.message.reply_text(
-                "🎁 اگر کد تخفیف دارید وارد کنید\nدر غیر این صورت از گزینه زیر استفاده کنید 👇",
-                reply_markup=ReplyKeyboardMarkup(
-                    [["❌ ندارم"]],
-                    resize_keyboard=True
-                )
-            )
+        else:
+            update.message.reply_text("امکان ثبت سفارش در حال حاضر وجود ندارد.")
+            reset_user(uid)
             return
-
-        # ✅ اگر تخفیف نیست → ادامه عادی
-        st["step"] = "delivery_slot"
 
         update.message.reply_text(
             f"⏰ لطفاً بازه زمانی تحویل غذا برای {st['delivery_day']} را انتخاب کنید:",
