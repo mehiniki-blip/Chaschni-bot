@@ -823,7 +823,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         discount_text = ""
         if st.get("discount", 0) > 0:
-            discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st['discount_amount']})"
+            discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st.get('discount_amount', 0)})"
         
         context.bot.send_message(
             uid,
@@ -903,7 +903,27 @@ def callbacks(update: Update, context: CallbackContext):
         total = total - (total * discount / 100)
 
         st["total"] = round(total, 2)
-        st["step"] = "pay"
+        # بررسی وجود کد تخفیف
+        cur.execute("""
+        SELECT 1 FROM discount_codes
+        WHERE used_count < max_use
+        LIMIT 1
+        """)
+
+        has_discount = cur.fetchone()
+
+        if has_discount:
+            st["step"] = "discount_code"
+
+            context.bot.send_message(
+                uid,
+                "🎁 اگر کد تخفیف دارید وارد کنید\nدر غیر این صورت بنویسید: ❌ ندارم",
+                reply_markup=ReplyKeyboardMarkup(
+                    [["❌ ندارم"]],
+                    resize_keyboard=True
+                )
+            )
+            return
 
         q.edit_message_text(
             f"✅ بازه تحویل انتخاب شد:\n"
@@ -1256,7 +1276,7 @@ def handle_text(update: Update, context: CallbackContext):
     if st and st.get("step") == "discount_code":
         code = text.strip().upper()
 
-        if code in ["رد", "❌ ندارم"]:
+        if code == "❌ ندارم":
             st["discount"] = 0
             st["discount_code"] = None
         else:
