@@ -917,7 +917,7 @@ def callbacks(update: Update, context: CallbackContext):
 
             context.bot.send_message(
                 uid,
-                "🎁 اگر کد تخفیف دارید وارد کنید\nدر غیر این صورت بنویسید: ❌ ندارم",
+                "🎁 اگر کد تخفیف دارید وارد کنید\nدر غیر این صورت از دکمه زیر استفاده کنید",
                 reply_markup=ReplyKeyboardMarkup(
                     [["❌ ندارم"]],
                     resize_keyboard=True
@@ -1279,6 +1279,10 @@ def handle_text(update: Update, context: CallbackContext):
         if code == "❌ ندارم":
             st["discount"] = 0
             st["discount_code"] = None
+            update.message.reply_text(
+                "💳 ادامه به پرداخت...",
+                reply_markup=ReplyKeyboardRemove()
+            )
         else:
             cur.execute("""
                 SELECT percent, max_use, used_count
@@ -1300,7 +1304,15 @@ def handle_text(update: Update, context: CallbackContext):
             """, (uid, code))
 
             if cur.fetchone():
-                update.message.reply_text("⛔ شما قبلاً از این کد استفاده کرده‌اید")
+                update.message.reply_text(
+                    "⛔ شما قبلاً از این کد استفاده کرده‌اید\n\n"
+                    "👉 اگر کد دیگری دارید وارد کنید\n"
+                    "یا از دکمه ❌ ندارم استفاده کنید",
+                    reply_markup=ReplyKeyboardMarkup(
+                        [["❌ ندارم"]],
+                        resize_keyboard=True
+                    )
+                )
                 return
 
             if used >= max_use:
