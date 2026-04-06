@@ -1344,10 +1344,12 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
-        if "ندارم" in code or "no" in code:
+        clean_code = code.replace("❌", "").strip()
+
+        if clean_code in ["ندارم", "no", "no code"]:
             st["discount"] = 0
             st["discount_code"] = None
-            st["step"] = "payment"
+            st["step"] = None
 
             update.message.reply_text(" ", reply_markup=ReplyKeyboardRemove())
 
@@ -1383,10 +1385,10 @@ def handle_text(update: Update, context: CallbackContext):
         """, (uid, code))
 
         if cur.fetchone():
-            st["step"] = "discount_code"  # تاکید دوباره
+            st["step"] = "discount_code"  # 🔥 مهم
 
             update.message.reply_text(
-                "⛔ شما قبلاً استفاده کردید...\n\n"
+                "⛔ شما قبلاً از این کد استفاده کرده‌اید\n\n"
                 "👉 اگر کد دیگری دارید وارد کنید\n"
                 "یا ❌ ندارم بزنید",
                 reply_markup=ReplyKeyboardMarkup(
