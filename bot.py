@@ -905,6 +905,11 @@ def callbacks(update: Update, context: CallbackContext):
         total = total - (total * discount / 100)
 
         st["total"] = round(total, 2)
+        if st.get("discount", 0) > 0:
+            discount_amount = total * st["discount"] / 100
+            discount_line = f"\n🎁 تخفیف: {st['discount']}٪ (-€{round(discount_amount, 2)})"
+        else:
+            discount_line = ""
         # بررسی وجود کد تخفیف
         cur.execute("""
         SELECT 1 FROM discount_codes
@@ -930,7 +935,7 @@ def callbacks(update: Update, context: CallbackContext):
         q.edit_message_text(
             f"✅ بازه تحویل انتخاب شد:\n"
             f"⏰ {start} – {end}\n\n"
-            f"💰 مبلغ نهایی: €{total}\n\n"
+            f"💰 مبلغ نهایی: €{total}{discount_line}\n\n"
             "⏳ شما فقط *۵ دقیقه* برای انجام پرداخت زمان دارید.\n"
             "❗ بعد از آن سفارش شما لغو خواهد شد.\n\n"
             "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
@@ -1350,24 +1355,7 @@ def handle_text(update: Update, context: CallbackContext):
         st["discount_amount"] = round(discount_amount, 2)
         st["total"] = round(total, 2)
 
-        # رفتن به پرداخت
-        st["step"] = "pay"
-
-        update.message.reply_text(
-            f"💰 مبلغ نهایی: €{st['total']}\n"
-            f"🎁 تخفیف: {discount}% (-€{st['discount_amount']})\n\n"
-            "💳 برای پرداخت ادامه دهید:"
-        )
-
-        context.bot.send_message(
-            chat_id=uid,
-            text="💳 برای پرداخت روی دکمه زیر بزنید:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
-                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
-            ])
-        )
-        return
+        st["step"] = "confirm_payment"
                         
     
     # ---------- ANTI-SPAM CHECK ----------
