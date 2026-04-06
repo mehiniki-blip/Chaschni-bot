@@ -160,15 +160,23 @@ def send_payment_message(context, uid, st):
     else:
         discount_text = ""
 
-    context.bot.send_message(
-        uid,
-        f"💰 مبلغ نهایی: €{st['total']}\n"
-        f"{discount_text}\n\n"
+    base_total = st["food_total"] + (sum(i.get("cutlery_qty", 0) for i in st["items"]) * CUTLERY_PRICE)
+
+    text = f"💰 مبلغ اولیه: €{round(base_total, 2)}\n"
+
+    if st.get("discount", 0) > 0:
+        text += f"🎁 تخفیف ({st['discount']}٪): -€{st.get('discount_amount', 0)}\n"
+
+    text += f"💳 مبلغ نهایی قابل پرداخت: €{st['total']}\n\n"
+
+    text += (
         "⏳ شما فقط ۵ دقیقه برای پرداخت زمان دارید.\n"
         "❗ بعد از آن سفارش شما لغو خواهد شد.\n\n"
         "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
         "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
     )
+
+    context.bot.send_message(uid, text)
 
     context.bot.send_message(
         chat_id=uid,
@@ -895,20 +903,30 @@ def callbacks(update: Update, context: CallbackContext):
         if st.get("discount", 0) > 0:
             discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st.get('discount_amount', 0)})"
         
-        context.bot.send_message(
-            uid,
+        base_total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
+
+        msg = (
             f"💳 پرداخت ثبت شد.\n"
             f"🧾 شماره سفارش: {order_no}\n\n"
             f"{foods_text}\n"
             f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
             f"📅 روز تحویل: {st['delivery_day']}\n"
-            f"⏰ بازه تحویل: {st['delivery_slot']}\n"
-            f"💶 مبلغ کل: €{st['total']}\n\n"
-            f"{discount_text}\n"
-            f"⏳ سفارش شما ثبت شد و در انتظار تأیید است.\n\n"
-            f"🕒 سفارش‌ها معمولاً در مدت کوتاهی تأیید می‌شوند.\n"
-            f"⚠️در صورتی که سفارش خارج از ساعات کاری ثبت شده باشد، تأیید آن صبح روز بعد انجام خواهد شد 🙏"
+            f"⏰ بازه تحویل: {st['delivery_slot']}\n\n"
+            f"💰 مبلغ اولیه: €{round(base_total,2)}\n"
         )
+
+        if st.get("discount", 0) > 0:
+            msg += f"🎁 تخفیف ({st['discount']}٪): -€{st.get('discount_amount',0)}\n"
+
+        msg += f"💳 مبلغ نهایی پرداخت‌ شده: €{st['total']}\n\n"
+
+        msg += (
+            "⏳ سفارش شما ثبت شد و در انتظار تأیید است.\n\n"
+            "🕒 سفارش‌ها معمولاً در مدت کوتاهی تأیید می‌شوند.\n"
+            "⚠️ در صورت ثبت خارج از ساعات کاری، صبح روز بعد تأیید می‌شود 🙏"
+        )
+
+        context.bot.send_message(uid, msg)
 
         # پیام ادمین
         admin_foods_text = "\n".join(
@@ -924,8 +942,9 @@ def callbacks(update: Update, context: CallbackContext):
         if st.get("discount", 0) > 0:
             discount_text = f"\n🎁 تخفیف: {st.get('discount',0)}٪ (-€{st.get('discount_amount',0)})"
 
-        context.bot.send_message(
-            ADMIN_CHAT_ID,
+        base_total = st["food_total"] + (admin_total_cutlery * CUTLERY_PRICE)
+
+        admin_msg = (
             f"🆕 سفارش جدید\n\n"
             f"🧾 شماره سفارش: {order_no}\n"
             f"👤 نام: {st['fullname']}\n"
@@ -935,9 +954,18 @@ def callbacks(update: Update, context: CallbackContext):
             f"📅 روز تحویل: {st['delivery_day']}\n"
             f"⏰ بازه تحویل: {st['delivery_slot']}\n\n"
             f"{admin_foods_text}\n"
-            f"🥄 مجموع قاشق/چنگال: {admin_total_cutlery}\n"
-            f"💶 مبلغ کل: €{st['total']}"
-            f"{discount_text}",
+            f"🥄 مجموع قاشق/چنگال: {admin_total_cutlery}\n\n"
+            f"💰 مبلغ اولیه: €{round(base_total,2)}\n"
+        )
+
+        if st.get("discount", 0) > 0:
+            admin_msg += f"🎁 تخفیف ({st.get('discount',0)}٪): -€{st.get('discount_amount',0)}\n"
+
+        admin_msg += f"💳 مبلغ دریافتی: €{st['total']}"
+
+        context.bot.send_message(
+            ADMIN_CHAT_ID,
+            admin_msg,
             reply_markup=admin_keyboard(order_no)
         )
         reset_user(uid)
