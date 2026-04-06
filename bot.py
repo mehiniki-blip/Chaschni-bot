@@ -895,16 +895,18 @@ def callbacks(update: Update, context: CallbackContext):
         conn.commit()
 
     # محاسبه مبلغ نهایی
-        total_cutlery = sum(
-            i.get("cutlery_qty", 0) for i in st["items"]
-        )
+        total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
 
-        total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
+        base_total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
 
         discount = st.get("discount", 0)
-        total = total - (total * discount / 100)
+        discount_amount = base_total * discount / 100
 
+        total = base_total - discount_amount
+
+        st["discount_amount"] = round(discount_amount, 2)
         st["total"] = round(total, 2)
+        
         if st.get("discount", 0) > 0:
             discount_amount = total * st["discount"] / 100
             discount_line = f"\n🎁 تخفیف: {st['discount']}٪ (-€{round(discount_amount, 2)})"
@@ -1355,7 +1357,21 @@ def handle_text(update: Update, context: CallbackContext):
         st["discount_amount"] = round(discount_amount, 2)
         st["total"] = round(total, 2)
 
-        st["step"] = "confirm_payment"
+        update.message.reply_text(
+            f"💰 مبلغ نهایی: €{st['total']}\n"
+            "⏳ شما فقط ۵ دقیقه برای پرداخت زمان دارید.\n\n"
+            "💳 برای پرداخت ادامه دهید:",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+        context.bot.send_message(
+            chat_id=uid,
+            text="💳 برای پرداخت روی دکمه زیر بزنید:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
+                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+            ])
+        )
                         
     
     # ---------- ANTI-SPAM CHECK ----------
