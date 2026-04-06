@@ -615,6 +615,9 @@ def callbacks(update: Update, context: CallbackContext):
     q.answer()
 
     st = user_state.get(uid)
+    if not st:
+        q.answer("❌ خطا، لطفاً دوباره سفارش دهید", show_alert=True)
+        return
 
     # ---------------- FOOD SELECTION ----------------
     if q.data.startswith("food_"):
@@ -675,6 +678,28 @@ def callbacks(update: Update, context: CallbackContext):
                 reply_markup=join_channel_keyboard()
             )
         return
+    
+    if q.data == "no_discount":
+        st = user_state.get(uid)
+
+        if not st:
+            q.answer("خطا", show_alert=True)
+            return
+
+        st["discount"] = 0
+        st["discount_code"] = None
+
+        total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
+        total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
+
+        st["discount_amount"] = 0
+        st["total"] = round(total, 2)
+
+        q.edit_message_text("❌ بدون کد تخفیف ادامه داده شد")
+
+        send_payment_message(context, uid, st)
+        return
+    
     # ---------------- CUTLERY YES ----------------
     if q.data == "cutlery_yes":
         st["step"] = "cutlery_qty"
@@ -949,11 +974,10 @@ def callbacks(update: Update, context: CallbackContext):
 
             context.bot.send_message(
                 uid,
-                "🎁 اگر کد تخفیف دارید وارد کنید\nدر غیر این صورت از دکمه زیر استفاده کنید",
-                reply_markup=ReplyKeyboardMarkup(
-                    [["❌ ندارم"]],
-                    resize_keyboard=True
-                )
+                "🎁 اگر کد تخفیف دارید وارد کنید\nیا روی دکمه زیر بزنید",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("❌ کد ندارم", callback_data="no_discount")]
+                ])
             )
             return
 
@@ -1291,7 +1315,7 @@ def handle_text(update: Update, context: CallbackContext):
         code = text.strip().upper()
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
-        if "ندارم" in code:
+        if code in ["❌ ندارم", "ندارم", "no", "no code"]:
             st["discount"] = 0
             st["discount_code"] = None
             st["step"] = "payment"
