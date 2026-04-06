@@ -909,11 +909,6 @@ def callbacks(update: Update, context: CallbackContext):
             f"🕒 سفارش‌ها معمولاً در مدت کوتاهی تأیید می‌شوند.\n"
             f"⚠️در صورتی که سفارش خارج از ساعات کاری ثبت شده باشد، تأیید آن صبح روز بعد انجام خواهد شد 🙏"
         )
-        context.bot.send_message(
-            uid,
-            "منوی اصلی:",
-            reply_markup=persistent_menu()
-        )
 
         # پیام ادمین
         admin_foods_text = "\n".join(
