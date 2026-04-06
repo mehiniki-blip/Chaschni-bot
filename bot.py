@@ -1344,21 +1344,20 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
-        clean_code = code.replace("❌", "").replace("x", "").strip().lower()
 
-        if "ندارم" in clean_code or "no" in clean_code:
+        if "ندارم" in code or "no" in code:
             st["discount"] = 0
             st["discount_code"] = None
-            st.pop("step", None)
 
-            update.message.reply_text(" ", reply_markup=ReplyKeyboardRemove())
-
-            # محاسبه مبلغ بدون تخفیف
+            # محاسبه مبلغ
             total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
             total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
 
             st["discount_amount"] = 0
             st["total"] = round(total, 2)
+
+            # پاک کردن attempts
+            user_discount_attempts.pop(uid, None)
 
             send_payment_message(context, uid, st)
             return
@@ -1385,16 +1384,15 @@ def handle_text(update: Update, context: CallbackContext):
         """, (uid, code))
 
         if cur.fetchone():
-            st["step"] = "discount_code"  # 🔥 مهم
+            st["step"] = "discount_code"
 
             update.message.reply_text(
                 "⛔ شما قبلاً از این کد استفاده کرده‌اید\n\n"
                 "👉 اگر کد دیگری دارید وارد کنید\n"
-                "یا ❌ ندارم بزنید",
-                reply_markup=ReplyKeyboardMarkup(
-                    [["❌ ندارم"]],
-                    resize_keyboard=True
-                )
+                "یا روی دکمه زیر بزنید 👇",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("❌ کد ندارم", callback_data="no_discount")]
+                ])
             )
             return
 
