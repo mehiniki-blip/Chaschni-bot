@@ -182,6 +182,7 @@ def send_payment_message(context, uid, st):
 # ---------- ANTI-SPAM ----------
 user_last_msgs = {}     # آخرین زمان پیام کاربر
 user_msg_count = {}     # تعداد پیام‌های اخیر
+user_discount_attempts = {}
 SPAM_WINDOW = 4         # بازه زمانی (ثانیه)
 SPAM_LIMIT = 5          # حداکثر پیام مجاز در این بازه
 
@@ -290,7 +291,7 @@ def close_order(order_no, status):
     ))
     conn.commit()
 
-def safe_create_order(user_id, items, delivery_day, delivery_slot, total, payment_method):
+def safe_create_order(user_id, items, delivery_day, delivery_slot, total, payment_method, discount_code=None):
     try:
         conn.execute("BEGIN IMMEDIATE")  # 🔒 قفل دیتابیس
 
@@ -324,6 +325,26 @@ def safe_create_order(user_id, items, delivery_day, delivery_slot, total, paymen
             conn.rollback()
             return False, "❌ این بازه زمانی پر شده"
 
+        
+        # 🔒 بررسی و قفل تخفیف
+        if discount_code:
+            cur.execute("""
+                SELECT percent, max_use, used_count
+                FROM discount_codes
+                WHERE code = ?
+            """, (discount_code,))
+            row = cur.fetchone()
+
+            if not row:
+                conn.rollback()
+                return False, "❌ کد تخفیف نامعتبر شد"
+
+            percent, max_use, used = row
+
+            if used >= max_use:
+                conn.rollback()
+                return False, "❌ ظرفیت کد تخفیف تمام شد"
+        
         # 3. ثبت سفارش
         from random import randint
         today = datetime.now(TIMEZONE).strftime("%Y%m%d")
@@ -349,6 +370,18 @@ def safe_create_order(user_id, items, delivery_day, delivery_slot, total, paymen
                 delivery_slot
             ))
 
+        # ✅ ثبت استفاده از تخفیف (داخل transaction)
+        if discount_code:
+            cur.execute("""
+                UPDATE discount_codes
+                SET used_count = used_count + 1
+                WHERE code = ?
+            """, (discount_code,))
+
+            cur.execute("""
+                INSERT OR IGNORE INTO discount_usage (user_id, code)
+                VALUES (?, ?)
+            """, (user_id, discount_code))
         conn.commit()
         return True, order_no
 
@@ -738,6 +771,9 @@ def callbacks(update: Update, context: CallbackContext):
     # ---------------- PAYMENT CONFIRM ----------------
     if q.data == "paid_paypal":
         st = user_state.get(uid)
+        if st and st.get("paid"):
+            q.answer("⚠️ این سفارش قبلاً ثبت شده", show_alert=True)
+            return
         
 
         # اگر state وجود نداشت
@@ -819,7 +855,8 @@ def callbacks(update: Update, context: CallbackContext):
             st["delivery_day"],
             st["delivery_slot"],
             st["total"],
-            "PayPal"
+            "PayPal",
+            st.get("discount_code")
         )
         
         
@@ -828,22 +865,6 @@ def callbacks(update: Update, context: CallbackContext):
             reset_user(uid)
             return
 
-
-        if st.get("discount_code"):
-            # افزایش تعداد استفاده
-            cur.execute("""
-                UPDATE discount_codes
-                SET used_count = used_count + 1
-                WHERE code = ?
-            """, (st["discount_code"],))
-    
-            # ثبت اینکه این کاربر استفاده کرده
-            cur.execute("""
-                INSERT OR IGNORE INTO discount_usage (user_id, code)
-                VALUES (?, ?)
-            """, (uid, st["discount_code"]))
-
-            conn.commit()
             
         cur.execute(
             "INSERT INTO logs (user_id, action, created_at) VALUES (?, ?, ?)",
@@ -959,7 +980,7 @@ def callbacks(update: Update, context: CallbackContext):
         
         # بررسی وجود کد تخفیف
         cur.execute("""
-        SELECT 1 FROM discount_codes
+        SELECT code FROM discount_codes
         WHERE used_count < max_use
         LIMIT 1
         """)
@@ -1310,6 +1331,11 @@ def handle_text(update: Update, context: CallbackContext):
     
     if st and st.get("step") == "discount_code":
         code = text.strip().upper()
+        attempts = user_discount_attempts.get(uid, 0)
+
+        if attempts >= 5:
+            update.message.reply_text("⛔ تلاش بیش از حد. بعداً امتحان کنید")
+            return
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
         if code in ["❌ ندارم", "ندارم", "no", "no code"]:
@@ -1338,6 +1364,7 @@ def handle_text(update: Update, context: CallbackContext):
         row = cur.fetchone()
 
         if not row:
+            user_discount_attempts[uid] = attempts + 1
             update.message.reply_text("❌ کد نامعتبر")
             return
 
@@ -1915,6 +1942,17 @@ def main():
     bot.set_webhook(WEBHOOK_URL)
 
     port = int(os.environ.get("PORT", 8443))
+    import threading
+
+    def expire_loop():
+        while True:
+            try:
+                expire_pending_orders()
+            except:
+                pass
+            time.sleep(60)
+
+    threading.Thread(target=expire_loop, daemon=True).start()
     app.run(host="0.0.0.0", port=port)
 
 
