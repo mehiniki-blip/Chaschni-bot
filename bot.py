@@ -900,8 +900,6 @@ def callbacks(update: Update, context: CallbackContext):
             i.get("cutlery_qty", 0) for i in st["items"]
         )
 
-        total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
-
         total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
 
         discount = st.get("discount", 0)
@@ -1281,20 +1279,14 @@ def handle_text(update: Update, context: CallbackContext):
     if st and st.get("step") == "discount_code":
         code = text.strip().upper()
 
-        if "ندارم" in code:
+        if code == "❌ ندارم":
             st["discount"] = 0
             st["discount_code"] = None
             update.message.reply_text(
-                "💳 ادامه به پرداخت...",
+                "💳 در حال انتقال به صفحه پرداخت...",
                 reply_markup=ReplyKeyboardRemove()
             )
 
-            # 👇 اینو اضافه کن (خیلی مهم)
-            context.bot.send_message(
-                uid,
-                "👇 منوی اصلی:",
-                reply_markup=persistent_menu()
-            )
         else:
             cur.execute("""
                 SELECT percent, max_use, used_count
