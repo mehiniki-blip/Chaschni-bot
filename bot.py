@@ -1218,6 +1218,12 @@ def handle_text(update: Update, context: CallbackContext):
         reset_user(uid)
         return
         
+    if text == "❌ لغو سفارش":
+        reset_user(uid)
+        update.message.reply_text("سفارش لغو شد.", reply_markup=persistent_menu())
+        return
+    
+    
     # --- ANALYTICS (ADMIN ONLY) ---
     if uid == ADMIN_CHAT_ID and text == "📊 تحلیل رفتار":
 
@@ -1330,7 +1336,7 @@ def handle_text(update: Update, context: CallbackContext):
         return
     
     if st and st.get("step") == "discount_code":
-        code = text.strip().upper()
+        code = text.strip().lower()
         attempts = user_discount_attempts.get(uid, 0)
 
         if attempts >= 5:
@@ -1338,7 +1344,7 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
-        if code in ["❌ ندارم", "ندارم", "no", "no code"]:
+        if "ندار" in code or "no" in code:
             st["discount"] = 0
             st["discount_code"] = None
             st["step"] = "payment"
@@ -1377,10 +1383,12 @@ def handle_text(update: Update, context: CallbackContext):
         """, (uid, code))
 
         if cur.fetchone():
+            st["step"] = "discount_code"  # تاکید دوباره
+
             update.message.reply_text(
-                "⛔ شما قبلاً از این کد استفاده کرده‌اید\n\n"
+                "⛔ شما قبلاً استفاده کردید...\n\n"
                 "👉 اگر کد دیگری دارید وارد کنید\n"
-                "یا از دکمه ❌ ندارم استفاده کنید",
+                "یا ❌ ندارم بزنید",
                 reply_markup=ReplyKeyboardMarkup(
                     [["❌ ندارم"]],
                     resize_keyboard=True
