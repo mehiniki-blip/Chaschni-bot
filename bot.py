@@ -1016,11 +1016,18 @@ def callbacks(update: Update, context: CallbackContext):
             return
             
         _, action, order_no = q.data.split("_")
-        order = orders_runtime.get(order_no)
+        cur.execute("""
+        SELECT user_id, food_name, qty, cutlery_qty, delivery_day, delivery_slot, total
+        FROM orders
+        WHERE order_no = ?
+        """, (order_no,))
+        rows = cur.fetchall()
 
-        if not order:
-            q.answer("❌ اطلاعات سفارش پیدا نشد", show_alert=True)
+        if not rows:
+            q.answer("❌ سفارش پیدا نشد", show_alert=True)
             return
+
+        user_id = rows[0][0]
         
 
         cur.execute("""
@@ -1312,7 +1319,7 @@ def handle_text(update: Update, context: CallbackContext):
         code = text.strip().upper()
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
-        if code in ["❌ ندارم", "ندارم", "no", "no code"]:
+        if q.data == "no_discount":
             st["discount"] = 0
             st["discount_code"] = None
             st["step"] = "payment"
