@@ -841,6 +841,7 @@ def callbacks(update: Update, context: CallbackContext):
         )
         context.bot.send_message(
             uid,
+            "منوی اصلی:",
             reply_markup=persistent_menu()
         )
 
@@ -856,7 +857,7 @@ def callbacks(update: Update, context: CallbackContext):
 
         discount_text = ""
         if st.get("discount", 0) > 0:
-            discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st['discount_amount']})"
+            discount_text = f"\n🎁 تخفیف: {st.get('discount',0)}٪ (-€{st.get('discount_amount',0)})"
 
         context.bot.send_message(
             ADMIN_CHAT_ID,
@@ -908,10 +909,9 @@ def callbacks(update: Update, context: CallbackContext):
         st["total"] = round(total, 2)
         
         if st.get("discount", 0) > 0:
-            discount_amount = total * st["discount"] / 100
-            discount_line = f"\n🎁 تخفیف: {st['discount']}٪ (-€{round(discount_amount, 2)})"
+            discount_text = f"\n🎁 تخفیف: {st.get('discount',0)}٪ (-€{st.get('discount_amount',0)})"
         else:
-            discount_line = ""
+            discount_text = ""
         # بررسی وجود کد تخفیف
         cur.execute("""
         SELECT 1 FROM discount_codes
@@ -937,7 +937,7 @@ def callbacks(update: Update, context: CallbackContext):
         q.edit_message_text(
             f"✅ بازه تحویل انتخاب شد:\n"
             f"⏰ {start} – {end}\n\n"
-            f"💰 مبلغ نهایی: €{total}{discount_line}\n\n"
+            f"💰 مبلغ نهایی: €{total}{discount_text}\n\n"
             "⏳ شما فقط *۵ دقیقه* برای انجام پرداخت زمان دارید.\n"
             "❗ بعد از آن سفارش شما لغو خواهد شد.\n\n"
             "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
