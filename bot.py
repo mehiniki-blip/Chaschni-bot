@@ -151,6 +151,33 @@ def get_slot_count(delivery_day, slot):
           AND status IN ('pending','approved')
     """, (delivery_day, slot))
     return cur.fetchone()[0] or 0
+
+
+def send_payment_message(context, uid, st):
+
+    if st.get("discount", 0) > 0:
+        discount_text = f"🎁 تخفیف: {st['discount']}٪ (-€{st.get('discount_amount', 0)})"
+    else:
+        discount_text = ""
+
+    context.bot.send_message(
+        uid,
+        f"💰 مبلغ نهایی: €{st['total']}\n"
+        f"{discount_text}\n\n"
+        "⏳ شما فقط ۵ دقیقه برای پرداخت زمان دارید.\n"
+        "❗ بعد از آن سفارش شما لغو خواهد شد.\n\n"
+        "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
+        "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
+    )
+
+    context.bot.send_message(
+        chat_id=uid,
+        text="💳 برای پرداخت روی دکمه زیر بزنید:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
+            [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+        ])
+    )
     
 # ---------- ANTI-SPAM ----------
 user_last_msgs = {}     # آخرین زمان پیام کاربر
@@ -908,10 +935,6 @@ def callbacks(update: Update, context: CallbackContext):
         st["discount_amount"] = round(discount_amount, 2)
         st["total"] = round(total, 2)
         
-        if st.get("discount", 0) > 0:
-            discount_text = f"\n🎁 تخفیف: {st.get('discount',0)}٪ (-€{st.get('discount_amount',0)})"
-        else:
-            discount_text = ""
         # بررسی وجود کد تخفیف
         cur.execute("""
         SELECT 1 FROM discount_codes
@@ -934,25 +957,7 @@ def callbacks(update: Update, context: CallbackContext):
             )
             return
 
-        q.edit_message_text(
-            f"✅ بازه تحویل انتخاب شد:\n"
-            f"⏰ {start} – {end}\n\n"
-            f"💰 مبلغ نهایی: €{total}{discount_text}\n\n"
-            "⏳ شما فقط *۵ دقیقه* برای انجام پرداخت زمان دارید.\n"
-            "❗ بعد از آن سفارش شما لغو خواهد شد.\n\n"
-            "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
-            "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید.",
-            parse_mode="Markdown"
-        )
-
-        context.bot.send_message(
-            chat_id=uid,
-            text="💳 برای پرداخت روی دکمه زیر بزنید:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{total}")],
-                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
-            ])
-        )
+        send_payment_message(context, uid, st)
         return
 
     # ---------------- ADD MORE OR CONTINUE ORDER ----------------
@@ -1285,93 +1290,81 @@ def handle_text(update: Update, context: CallbackContext):
     if st and st.get("step") == "discount_code":
         code = text.strip().upper()
 
+        # ❌ کاربر کد ندارد
         if code == "❌ ندارم":
             st["discount"] = 0
             st["discount_code"] = None
+            st["step"] = "payment"
+
             update.message.reply_text(" ", reply_markup=ReplyKeyboardRemove())
 
-            update.message.reply_text(
-                f"💰 مبلغ نهایی: €{st['total']}\n"
-                "⏳ شما فقط ۵ دقیقه برای پرداخت زمان دارید.\n\n"
-                "💳 برای پرداخت ادامه دهید:"
-            )
+            # محاسبه مبلغ
+            total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
+            total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
 
-            context.bot.send_message(
-                chat_id=uid,
-                text="💳 پرداخت:",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
-                    [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
-                ])
-            )
+            st["discount_amount"] = 0
+            st["total"] = round(total, 2)
 
-        else:
-            cur.execute("""
-                SELECT percent, max_use, used_count
-                FROM discount_codes
-                WHERE code=?
-            """, (code,))
-            row = cur.fetchone()
+            send_payment_message(context, uid, st)
+            return
 
-            if not row:
-                update.message.reply_text("❌ کد نامعتبر")
-                return
+        # ✅ کاربر کد وارد کرده
+        cur.execute("""
+            SELECT percent, max_use, used_count
+            FROM discount_codes
+            WHERE code=?
+        """, (code,))
+        row = cur.fetchone()
 
-            percent, max_use, used = row
+        if not row:
+            update.message.reply_text("❌ کد نامعتبر")
+            return
 
-            # چک استفاده قبلی
-            cur.execute("""
+        percent, max_use, used = row
+
+        # چک استفاده قبلی
+        cur.execute("""
             SELECT 1 FROM discount_usage
             WHERE user_id = ? AND code = ?
-            """, (uid, code))
+        """, (uid, code))
 
-            if cur.fetchone():
-                update.message.reply_text(
-                    "⛔ شما قبلاً از این کد استفاده کرده‌اید\n\n"
-                    "👉 اگر کد دیگری دارید وارد کنید\n"
-                    "یا از دکمه ❌ ندارم استفاده کنید",
-                    reply_markup=ReplyKeyboardMarkup(
-                        [["❌ ندارم"]],
-                        resize_keyboard=True
-                    )
+        if cur.fetchone():
+            update.message.reply_text(
+                "⛔ شما قبلاً از این کد استفاده کرده‌اید\n\n"
+                "👉 اگر کد دیگری دارید وارد کنید\n"
+                "یا از دکمه ❌ ندارم استفاده کنید",
+                reply_markup=ReplyKeyboardMarkup(
+                    [["❌ ندارم"]],
+                    resize_keyboard=True
                 )
-                return
+            )
+            return
 
-            if used >= max_use:
-                update.message.reply_text("⛔ کد غیرفعال")
-                return
+        if used >= max_use:
+            update.message.reply_text("⛔ کد غیرفعال")
+            return
 
-            st["discount"] = percent
-            st["discount_code"] = code
+        # اعمال تخفیف
+        st["discount"] = percent
+        st["discount_code"] = code
 
-            update.message.reply_text(f"✅ {percent}% تخفیف اعمال شد")
-
-        # ✅ محاسبه مبلغ (خیلی مهم)
+        # محاسبه مبلغ
         total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
         total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
 
-        discount = st.get("discount", 0)
-        discount_amount = total * discount / 100
+        discount_amount = total * percent / 100
         total = total - discount_amount
 
         st["discount_amount"] = round(discount_amount, 2)
         st["total"] = round(total, 2)
 
         update.message.reply_text(
-            f"💰 مبلغ نهایی: €{st['total']}\n"
-            "⏳ شما فقط ۵ دقیقه برای پرداخت زمان دارید.\n\n"
-            "💳 برای پرداخت ادامه دهید:",
-            reply_markup=ReplyKeyboardRemove()
+            f"✅ {percent}% تخفیف اعمال شد\n"
+            f"💰 مبلغ جدید: €{st['total']}"
         )
 
-        context.bot.send_message(
-            chat_id=uid,
-            text="💳 برای پرداخت روی دکمه زیر بزنید:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
-                [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
-            ])
-        )
+        send_payment_message(context, uid, st)
+        return
                         
     
     # ---------- ANTI-SPAM CHECK ----------
