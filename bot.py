@@ -839,6 +839,11 @@ def callbacks(update: Update, context: CallbackContext):
             f"🕒 سفارش‌ها معمولاً در مدت کوتاهی تأیید می‌شوند.\n"
             f"⚠️در صورتی که سفارش خارج از ساعات کاری ثبت شده باشد، تأیید آن صبح روز بعد انجام خواهد شد 🙏"
         )
+        context.bot.send_message(
+            uid,
+            "👇 منوی اصلی:",
+            reply_markup=persistent_menu()
+        )
 
         # پیام ادمین
         admin_foods_text = "\n".join(
@@ -1276,12 +1281,19 @@ def handle_text(update: Update, context: CallbackContext):
     if st and st.get("step") == "discount_code":
         code = text.strip().upper()
 
-        if code == "❌ ندارم":
+        if "ندارم" in code:
             st["discount"] = 0
             st["discount_code"] = None
             update.message.reply_text(
                 "💳 ادامه به پرداخت...",
                 reply_markup=ReplyKeyboardRemove()
+            )
+
+            # 👇 اینو اضافه کن (خیلی مهم)
+            context.bot.send_message(
+                uid,
+                "👇 منوی اصلی:",
+                reply_markup=persistent_menu()
             )
         else:
             cur.execute("""
