@@ -615,9 +615,6 @@ def callbacks(update: Update, context: CallbackContext):
     q.answer()
 
     st = user_state.get(uid)
-    if not st:
-        q.answer("❌ خطا، لطفاً دوباره سفارش دهید", show_alert=True)
-        return
 
     # ---------------- FOOD SELECTION ----------------
     if q.data.startswith("food_"):
