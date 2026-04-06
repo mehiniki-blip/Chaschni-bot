@@ -841,7 +841,6 @@ def callbacks(update: Update, context: CallbackContext):
         )
         context.bot.send_message(
             uid,
-            "👇 منوی اصلی:",
             reply_markup=persistent_menu()
         )
 
@@ -1282,9 +1281,21 @@ def handle_text(update: Update, context: CallbackContext):
         if code == "❌ ندارم":
             st["discount"] = 0
             st["discount_code"] = None
+            update.message.reply_text(" ", reply_markup=ReplyKeyboardRemove())
+
             update.message.reply_text(
-                "💳 در حال انتقال به صفحه پرداخت...",
-                reply_markup=ReplyKeyboardRemove()
+                f"💰 مبلغ نهایی: €{st['total']}\n"
+                "⏳ شما فقط ۵ دقیقه برای پرداخت زمان دارید.\n\n"
+                "💳 برای پرداخت ادامه دهید:"
+            )
+
+            context.bot.send_message(
+                chat_id=uid,
+                text="💳 پرداخت:",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
+                    [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+                ])
             )
 
         else:
@@ -1350,7 +1361,7 @@ def handle_text(update: Update, context: CallbackContext):
 
         context.bot.send_message(
             chat_id=uid,
-            text="💳 پرداخت:",
+            text="💳 برای پرداخت روی دکمه زیر بزنید:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
                 [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
