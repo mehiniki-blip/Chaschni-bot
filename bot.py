@@ -1291,7 +1291,7 @@ def handle_text(update: Update, context: CallbackContext):
         code = text.strip().upper()
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
-        if code == "❌ ندارم":
+        if "ندارم" in code:
             st["discount"] = 0
             st["discount_code"] = None
             st["step"] = "payment"
