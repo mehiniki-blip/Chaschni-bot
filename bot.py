@@ -1344,12 +1344,12 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
-        clean_code = code.replace("❌", "").strip()
+        clean_code = code.replace("❌", "").replace("x", "").strip().lower()
 
-        if clean_code in ["ندارم", "no", "no code"]:
+        if "ندارم" in clean_code or "no" in clean_code:
             st["discount"] = 0
             st["discount_code"] = None
-            st["step"] = None
+            st.pop("step", None)
 
             update.message.reply_text(" ", reply_markup=ReplyKeyboardRemove())
 
