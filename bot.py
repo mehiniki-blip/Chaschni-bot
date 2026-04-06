@@ -890,7 +890,6 @@ def callbacks(update: Update, context: CallbackContext):
         )
         context.bot.send_message(
             uid,
-            "منوی اصلی:",
             reply_markup=persistent_menu()
         )
 
