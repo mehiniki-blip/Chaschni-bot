@@ -1290,7 +1290,7 @@ def handle_text(update: Update, context: CallbackContext):
     if st and st.get("step") == "discount_code":
         code = text.strip().upper()
 
-        # ❌ کاربر کد ندارد
+        # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
         if code == "❌ ندارم":
             st["discount"] = 0
             st["discount_code"] = None
@@ -1298,7 +1298,7 @@ def handle_text(update: Update, context: CallbackContext):
 
             update.message.reply_text(" ", reply_markup=ReplyKeyboardRemove())
 
-            # محاسبه مبلغ
+            # محاسبه مبلغ بدون تخفیف
             total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
             total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
 
@@ -1308,7 +1308,7 @@ def handle_text(update: Update, context: CallbackContext):
             send_payment_message(context, uid, st)
             return
 
-        # ✅ کاربر کد وارد کرده
+        # ✅ بقیه کدها
         cur.execute("""
             SELECT percent, max_use, used_count
             FROM discount_codes
