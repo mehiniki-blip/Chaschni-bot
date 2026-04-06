@@ -1336,7 +1336,7 @@ def handle_text(update: Update, context: CallbackContext):
         return
     
     if st and st.get("step") == "discount_code":
-        code = text.strip().lower()
+        code = text.strip().upper()
         attempts = user_discount_attempts.get(uid, 0)
 
         if attempts >= 5:
@@ -1344,7 +1344,7 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         # ❌ کاربر کد ندارد (این باید همیشه اول چک شود)
-        if "ندار" in code or "no" in code:
+        if "ندارم" in code or "no" in code:
             st["discount"] = 0
             st["discount_code"] = None
             st["step"] = "payment"
