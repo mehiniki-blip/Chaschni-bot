@@ -156,7 +156,7 @@ def get_slot_count(delivery_day, slot):
 def send_payment_message(context, uid, st):
 
     if st.get("discount", 0) > 0:
-        discount_text = f"🎁 تخفیف: {st['discount']}٪ (-€{st.get('discount_amount', 0)})"
+        discount_text = f"🎁 تخفیف: {st['discount']}٪ (-€{round(st.get('discount_amount', 0),2)})"
     else:
         discount_text = ""
 
@@ -165,9 +165,9 @@ def send_payment_message(context, uid, st):
     text = f"💰 مبلغ اولیه: €{round(base_total, 2)}\n"
 
     if st.get("discount", 0) > 0:
-        text += f"🎁 تخفیف ({st['discount']}٪): -€{st.get('discount_amount', 0)}\n"
+        text += f"🎁 تخفیف ({st['discount']}٪): -€{round(st.get('discount_amount', 0),2)}\n"
 
-    text += f"💳 مبلغ نهایی قابل پرداخت: €{st['total']}\n\n"
+    text += f"💳 مبلغ نهایی قابل پرداخت: €{st['total']} (این مبلغ را پرداخت کنید)\n\n"
 
     text += (
         "⏳ شما فقط ۵ دقیقه برای پرداخت زمان دارید.\n"
@@ -182,7 +182,7 @@ def send_payment_message(context, uid, st):
         chat_id=uid,
         text="💳 برای پرداخت روی دکمه زیر بزنید:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{st['total']}")],
+            [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{round(st['total'],2)}")],
             [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
         ])
     )
@@ -916,8 +916,8 @@ def callbacks(update: Update, context: CallbackContext):
         )
 
         if st.get("discount", 0) > 0:
-            msg += f"🎁 تخفیف ({st['discount']}٪): -€{st.get('discount_amount',0)}\n"
-
+            msg += f"🎁 تخفیف ({st['discount']}٪): -€{round(st.get('discount_amount',0),2)}\n"
+            
         msg += f"💳 مبلغ نهایی پرداخت‌ شده: €{st['total']}\n\n"
 
         msg += (
@@ -959,7 +959,7 @@ def callbacks(update: Update, context: CallbackContext):
         )
 
         if st.get("discount", 0) > 0:
-            admin_msg += f"🎁 تخفیف ({st.get('discount',0)}٪): -€{st.get('discount_amount',0)}\n"
+            admin_msg += f"🎁 تخفیف ({st.get('discount',0)}٪): -€{round(st.get('discount_amount',0),2)}\n"
 
         admin_msg += f"💳 مبلغ دریافتی: €{st['total']}"
 
@@ -1381,7 +1381,7 @@ def handle_text(update: Update, context: CallbackContext):
 
             # پاک کردن attempts
             user_discount_attempts.pop(uid, None)
-
+            st["step"] = "payment"
             send_payment_message(context, uid, st)
             return
 
