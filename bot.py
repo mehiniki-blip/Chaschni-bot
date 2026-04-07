@@ -378,13 +378,6 @@ def safe_create_order(user_id, items, delivery_day, delivery_slot, total, paymen
                 delivery_slot
             ))
 
-        # ✅ ثبت استفاده از تخفیف (داخل transaction)
-        if discount_code:
-            cur.execute("""
-                UPDATE discount_codes
-                SET used_count = used_count + 1
-                WHERE code = ?
-            """, (discount_code,))
 
             cur.execute("""
                 INSERT OR IGNORE INTO discount_usage (user_id, code)
@@ -1399,6 +1392,17 @@ def handle_text(update: Update, context: CallbackContext):
             return
 
         percent, max_use, used = row
+        if used >= max_use:
+            update.message.reply_text("⛔ کد غیرفعال")
+            return
+
+                    # ✅ مصرف فوری کد (حل مشکل)
+        cur.execute("""
+        UPDATE discount_codes
+        SET used_count = used_count + 1
+        WHERE code = ?
+        """, (code,))
+        conn.commit()
 
         # چک استفاده قبلی
         cur.execute("""
