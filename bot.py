@@ -17,7 +17,7 @@ from telegram import (
 )
 
 from telegram.ext import (
-    Dispatcher,
+    Updater,
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
@@ -1965,30 +1965,25 @@ def expire_loop():
         time.sleep(60)
 
 
+from telegram.ext import Updater
+
 def main():
-    global dp
-
-    from queue import Queue
-
-    update_queue = Queue()
-    dp = Dispatcher(bot, update_queue, workers=4)
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(callbacks))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
-    bot.delete_webhook()
+    updater.bot.delete_webhook()
 
     threading.Thread(target=expire_loop, daemon=True).start()
 
     print("Bot is running...")
 
-    dp.start_polling()
-    dp.idle()
+    updater.start_polling()
+    updater.idle()
 
 
 if __name__ == "__main__":
     main()
-
-
-
