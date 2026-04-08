@@ -1947,22 +1947,17 @@ def handle_text(update: Update, context: CallbackContext):
             reply_markup=delivery_slot_keyboard(st["delivery_day"])
         )
         return
-# ----------- WEBHOOK MODE -----------
-app = Flask(__name__)
-dp = None
-bot = Bot(BOT_TOKEN)
+# ----------- polling MODE -----------
+import threading
+import time
 
-@app.route(f"/{BOT_TOKEN}", methods=["POST"])
-def webhook_handler():
-    global dp
-    update = Update.de_json(request.get_json(force=True), bot)
-    dp.process_update(update)
-    return "OK", 200
-
-
-@app.route("/")
-def home():
-    return "Bot is running!", 200
+def expire_loop():
+    while True:
+        try:
+            expire_pending_orders()
+        except:
+            pass
+        time.sleep(60)
 
 
 def main():
@@ -1976,29 +1971,19 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(callbacks))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
+
     bot.delete_webhook()
 
     threading.Thread(target=expire_loop, daemon=True).start()
-    
+
+    print("Bot is running...")
+
     dp.start_polling()
     dp.idle()
-    
-
-    def expire_loop():
-        while True:
-            try:
-                expire_pending_orders()
-            except:
-                pass
-            time.sleep(60)
-
-    
-    
 
 
 if __name__ == "__main__":
     main()
-
 
 
 
