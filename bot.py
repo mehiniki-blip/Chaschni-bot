@@ -1975,11 +1975,14 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(callbacks))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
+    bot.delete_webhook()
 
-    WEBHOOK_URL = f"https://chaschni-bot.onrender.com/{BOT_TOKEN}"
-    bot.set_webhook(WEBHOOK_URL)
-
-    port = int(os.environ.get("PORT", 8443))
+    threading.Thread(target=expire_loop, daemon=True).start()
+    
+    dp.start_polling()
+    dp.idle()
+    
+    
     import threading
 
     def expire_loop():
@@ -1990,8 +1993,8 @@ def main():
                 pass
             time.sleep(60)
 
-    threading.Thread(target=expire_loop, daemon=True).start()
-    app.run(host="0.0.0.0", port=port)
+    
+    
 
 
 if __name__ == "__main__":
