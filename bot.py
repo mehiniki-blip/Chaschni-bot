@@ -1967,7 +1967,10 @@ def home():
 def main():
     global dp
 
-    dp = Dispatcher(bot, None, workers=0)
+    from queue import Queue
+
+    update_queue = Queue()
+    dp = Dispatcher(bot, update_queue, workers=4)
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CallbackQueryHandler(callbacks))
