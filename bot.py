@@ -7,6 +7,9 @@ import uuid
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+bot = Bot(BOT_TOKEN)
+
 from telegram import (
     Bot,
     Update,
