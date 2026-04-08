@@ -6,6 +6,13 @@ import uuid
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 
+from flask import Flask
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot is alive"
+    
 # 👇 اول import
 from telegram import (
     Bot,
@@ -1964,8 +1971,10 @@ def expire_loop():
             pass
         time.sleep(60)
 
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
 
-from telegram.ext import Updater
 
 def main():
     updater = Updater(BOT_TOKEN, use_context=True)
@@ -1977,8 +1986,10 @@ def main():
 
     updater.bot.delete_webhook()
 
+    threading.Thread(target=run_web, daemon=True).start()
+    
     threading.Thread(target=expire_loop, daemon=True).start()
-
+    
     print("Bot is running...")
 
     updater.start_polling()
@@ -1987,3 +1998,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
