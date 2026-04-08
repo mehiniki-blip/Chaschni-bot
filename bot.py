@@ -1,5 +1,3 @@
-from flask import Flask, request
-import os
 import time
 import threading
 import sqlite3
@@ -7,9 +5,7 @@ import uuid
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-bot = Bot(BOT_TOKEN)
-
+# 👇 اول import
 from telegram import (
     Bot,
     Update,
@@ -18,6 +14,7 @@ from telegram import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove
 )
+
 from telegram.ext import (
     Dispatcher,
     CommandHandler,
@@ -26,6 +23,10 @@ from telegram.ext import (
     Filters,
     CallbackContext
 )
+
+# 👇 بعدش استفاده
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+bot = Bot(BOT_TOKEN)
 
 # ================= CONFIG =================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
