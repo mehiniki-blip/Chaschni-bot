@@ -183,10 +183,11 @@ def send_payment_message(context, uid, st):
     text += f"💳 مبلغ نهایی قابل پرداخت: €{st['total']} (این مبلغ را پرداخت کنید)\n\n"
 
     text += (
-        "⏳ شما فقط ۵ دقیقه برای پرداخت زمان دارید.\n"
+        "⏳ شما فقط ۵ دقیقه برای پرداخت PayPal زمان دارید.\n"
         "❗ بعد از آن سفارش شما لغو خواهد شد.\n\n"
-        "💳 پرداخت فقط از طریق PayPal انجام می‌شود.\n"
-        "🙏 پس از پرداخت روی «پرداخت انجام شد» بزنید."
+        "💳 پرداخت آنلاین از طریق PayPal\n"
+        "💵 یا پرداخت نقدی در محل\n"
+        "🙏 پس از پرداخت PayPal روی «پرداخت انجام شد» بزنید."
     )
 
     context.bot.send_message(uid, text)
@@ -196,7 +197,8 @@ def send_payment_message(context, uid, st):
         text="💳 برای پرداخت روی دکمه زیر بزنید:",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("💳 پرداخت با PayPal", url=f"{PAYPAL_BASE_LINK}/{round(st['total'],2)}")],
-            [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")]
+            [InlineKeyboardButton("✅ پرداخت انجام شد", callback_data="paid_paypal")],
+            [InlineKeyboardButton("💵 پرداخت نقدی", callback_data="pay_cash")]
         ])
     )
     
