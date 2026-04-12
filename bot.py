@@ -519,6 +519,13 @@ def pickup_keyboard():
     ])
 
 
+def payment_method_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("💳 پرداخت با PayPal", callback_data="pay_paypal")],
+        [InlineKeyboardButton("💵 پرداخت نقدی", callback_data="pay_cash")]
+    ])
+
+
 def delivery_slot_keyboard(delivery_day):
     buttons = []
 
@@ -742,6 +749,42 @@ def callbacks(update: Update, context: CallbackContext):
         q.edit_message_text("❌ بدون کد تخفیف ادامه داده شد")
 
         send_payment_message(context, uid, st)
+        return
+    
+    if q.data == "pay_paypal":
+        st["payment_method"] = "PayPal"
+        send_payment_message(context, uid, st)
+        return
+
+    if q.data == "pay_cash":
+        st["payment_method"] = "Cash"
+
+        success, order_no = safe_create_order(
+            uid,
+            st["items"],
+            st["delivery_day"],
+            st["delivery_slot"],
+            st["total"],
+            "Cash",
+            st.get("discount_code")
+        )
+
+        if not success:
+            context.bot.send_message(uid, order_no)
+            return
+
+        context.bot.send_message(
+            uid,
+            f"سفارش ثبت شد ✅\nشماره سفارش: {order_no}\nپرداخت: نقدی"
+        )
+
+        context.bot.send_message(
+            ADMIN_CHAT_ID,
+            f"سفارش جدید نقدی\n{order_no}",
+            reply_markup=admin_keyboard(order_no)
+        )
+
+        reset_user(uid)
         return
     
     # ---------------- CUTLERY YES ----------------
@@ -1028,7 +1071,13 @@ def callbacks(update: Update, context: CallbackContext):
             )
             return
 
-        send_payment_message(context, uid, st)
+        st["step"] = "choose_payment"
+
+        context.bot.send_message(
+            uid,
+            "💳 روش پرداخت رو انتخاب کن:",
+            reply_markup=payment_method_keyboard()
+        )
         return
 
     # ---------------- ADD MORE OR CONTINUE ORDER ----------------
