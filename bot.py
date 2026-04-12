@@ -759,7 +759,7 @@ def callbacks(update: Update, context: CallbackContext):
     if q.data == "pay_cash":
         st["payment_method"] = "Cash"
 
-        success, order_no = safe_create_order(
+        success, result = safe_create_order(
             uid,
             st["items"],
             st["delivery_day"],
@@ -770,17 +770,35 @@ def callbacks(update: Update, context: CallbackContext):
         )
 
         if not success:
-            context.bot.send_message(uid, order_no)
+            context.bot.send_message(uid, result)
+            reset_user(uid)
             return
+
+        order_no = result
 
         context.bot.send_message(
             uid,
-            f"سفارش ثبت شد ✅\nشماره سفارش: {order_no}\nپرداخت: نقدی"
+            f"🧾 سفارش شما ثبت شد\n"
+            f"💵 روش پرداخت: نقدی\n"
+            f"📦 شماره سفارش: {order_no}\n\n"
+            "⏳ سفارش شما در انتظار تأیید ادمین است"
+        )
+
+        # پیام برای ادمین
+        foods_text = "\n".join(
+            f"🍽 {i['food_name']} × {i['qty']}"
+            for i in st["items"]
         )
 
         context.bot.send_message(
             ADMIN_CHAT_ID,
-            f"سفارش جدید نقدی\n{order_no}",
+            f"🆕 سفارش جدید (نقدی)\n\n"
+            f"🧾 {order_no}\n"
+            f"👤 {st['fullname']}\n"
+            f"📞 {st['phone']}\n"
+            f"📍 {st['address']}\n\n"
+            f"{foods_text}\n\n"
+            f"💰 مبلغ: €{st['total']}",
             reply_markup=admin_keyboard(order_no)
         )
 
