@@ -757,8 +757,35 @@ def callbacks(update: Update, context: CallbackContext):
         return
 
     if q.data == "pay_cash":
+        st = user_state.get(uid)
+
+        if not st:
+            q.answer("خطا", show_alert=True)
+            return
+
+        # جلوگیری از دوبار ثبت
+        if st.get("paid"):
+            q.answer("⚠️ این سفارش قبلاً ثبت شده", show_alert=True)
+            return
+
         st["payment_method"] = "Cash"
 
+        # 🎁 بررسی اولین سفارش (مثل PayPal)
+        cur.execute("SELECT COUNT(*) FROM orders WHERE user_id = ?", (uid,))
+        order_count = cur.fetchone()[0]
+        first_order = order_count == 0
+
+        if first_order:
+            st["items"].append({
+                "food_key": "gift_farani",
+                "food_name": "🍮 فرنی (هدیه اولین سفارش)",
+                "qty": 1,
+                "price": 0,
+                "food_total": 0,
+                "cutlery_qty": 0
+            })
+
+        # ثبت سفارش
         success, result = safe_create_order(
             uid,
             st["items"],
@@ -774,31 +801,86 @@ def callbacks(update: Update, context: CallbackContext):
             reset_user(uid)
             return
 
+        # ✅ جلوگیری از دوبار ثبت
+        st["paid"] = True
+
         order_no = result
 
-        context.bot.send_message(
-            uid,
-            f"🧾 سفارش شما ثبت شد\n"
-            f"💵 روش پرداخت: نقدی\n"
-            f"📦 شماره سفارش: {order_no}\n\n"
-            "⏳ سفارش شما در انتظار تأیید ادمین است"
-        )
+        # ✅ خیلی مهم برای ادمین
+        import copy
+        orders_runtime[order_no] = copy.deepcopy(st)
+        orders_runtime[order_no]["user_id"] = uid
 
-        # پیام برای ادمین
+        # ================== دقیقاً کپی PayPal ==================
+
         foods_text = "\n".join(
-            f"🍽 {i['food_name']} × {i['qty']}"
+            f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
             for i in st["items"]
         )
 
+        total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
+
+        discount_text = ""
+        if st.get("discount", 0) > 0:
+            discount_text = f"\n🎁 تخفیف: {st['discount']}٪ (-€{st.get('discount_amount', 0)})"
+
+        base_total = st["food_total"] + (total_cutlery * CUTLERY_PRICE)
+
+        # ---------- پیام مشتری ----------
+        msg = (
+            f"💳 ثبت سفارش (پرداخت نقدی)\n"
+            f"🧾 شماره سفارش: {order_no}\n\n"
+            f"{foods_text}\n"
+            f"🥄 مجموع قاشق/چنگال: {total_cutlery}\n"
+            f"📅 روز تحویل: {st['delivery_day']}\n"
+            f"⏰ بازه تحویل: {st['delivery_slot']}\n\n"
+            f"💰 مبلغ اولیه: €{round(base_total,2)}\n"
+        )
+
+        if st.get("discount", 0) > 0:
+            msg += f"🎁 تخفیف ({st['discount']}٪): -€{round(st.get('discount_amount',0),2)}\n"
+
+        msg += f"💵 مبلغ قابل پرداخت در محل: €{st['total']}\n\n"
+
+        msg += (
+            "⏳ سفارش شما ثبت شد و در انتظار تأیید است.\n"
+            "💵 پرداخت به‌صورت نقدی در محل انجام می‌شود."
+        )
+
+        context.bot.send_message(uid, msg)
+
+        # ---------- پیام ادمین ----------
+        admin_foods_text = "\n".join(
+            f"🍽 {i['food_name']} × {i['qty']} | 🥄 {i.get('cutlery_qty', 0)}"
+            for i in st["items"]
+        )
+
+        admin_total_cutlery = sum(i.get("cutlery_qty", 0) for i in st["items"])
+
+        base_total = st["food_total"] + (admin_total_cutlery * CUTLERY_PRICE)
+
+        admin_msg = (
+            f"💵 سفارش جدید (نقدی)\n\n"
+            f"🧾 شماره سفارش: {order_no}\n"
+            f"👤 نام: {st['fullname']}\n"
+            f"📞 تلفن: {st['phone']}\n"
+            f"📍 آدرس: {st['address']}\n"
+            f"📮 کد پستی: {st['postcode']}\n"
+            f"📅 روز تحویل: {st['delivery_day']}\n"
+            f"⏰ بازه تحویل: {st['delivery_slot']}\n\n"
+            f"{admin_foods_text}\n"
+            f"🥄 مجموع قاشق/چنگال: {admin_total_cutlery}\n\n"
+            f"💰 مبلغ اولیه: €{round(base_total,2)}\n"
+        )
+
+        if st.get("discount", 0) > 0:
+            admin_msg += f"🎁 تخفیف ({st['discount']}٪): -€{round(st.get('discount_amount',0),2)}\n"
+
+        admin_msg += f"💵 مبلغ قابل دریافت: €{st['total']}"
+
         context.bot.send_message(
             ADMIN_CHAT_ID,
-            f"🆕 سفارش جدید (نقدی)\n\n"
-            f"🧾 {order_no}\n"
-            f"👤 {st['fullname']}\n"
-            f"📞 {st['phone']}\n"
-            f"📍 {st['address']}\n\n"
-            f"{foods_text}\n\n"
-            f"💰 مبلغ: €{st['total']}",
+            admin_msg,
             reply_markup=admin_keyboard(order_no)
         )
 
