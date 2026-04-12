@@ -1388,12 +1388,24 @@ def handle_text(update: Update, context: CallbackContext):
 
         close_order(order_no, "canceled")
 
-        context.bot.send_message(
-            target_user,
-            f"❌ سفارش شما لغو شد.\n\n"
-            f"📌 دلیل: {reason}\n\n"
-            "💰 در صورت پرداخت، مبلغ تا دقایقی دیگر بازگردانده می‌شود."
-        )
+        # گرفتن نوع پرداخت از دیتابیس
+        cur.execute("SELECT payment_method FROM orders WHERE order_no = ?", (order_no,))
+        payment_method = cur.fetchone()[0]
+
+        if payment_method == "Cash":
+            msg = (
+                f"❌ سفارش شما لغو شد.\n\n"
+                f"📌 دلیل: {reason}\n\n"
+                "در صورت تمایل می‌توانید مجدداً سفارش ثبت کنید 🙏"
+            )
+        else:
+            msg = (
+                f"❌ سفارش شما لغو شد.\n\n"
+                f"📌 دلیل: {reason}\n\n"
+                "💰 در صورت پرداخت، مبلغ تا دقایقی دیگر بازگردانده می‌شود."
+            )
+
+        context.bot.send_message(target_user, msg)
 
         update.message.reply_text("✅ سفارش لغو شد و دلیل ارسال شد.")
 
